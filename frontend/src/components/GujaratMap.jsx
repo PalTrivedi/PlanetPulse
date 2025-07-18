@@ -6,7 +6,7 @@ const dams = [
   {
     id: 1,
     name: "Sardar Sarovar Dam",
-    position: [21.8333, 73.75] as [number, number],
+    position: [21.8333, 73.75],
     capacity: "9.5 BCM",
     river: "Narmada River",
     type: "Concrete Gravity Dam",
@@ -19,7 +19,7 @@ const dams = [
   {
     id: 2,
     name: "Ukai Dam",
-    position: [21.2333, 73.5833] as [number, number],
+    position: [21.2333, 73.5833],
     capacity: "8.51 BCM",
     river: "Tapi River",
     type: "Masonry Dam",
@@ -32,7 +32,7 @@ const dams = [
   {
     id: 3,
     name: "Kadana Dam",
-    position: [22.8333, 73.8667] as [number, number],
+    position: [22.8333, 73.8667],
     capacity: "1.55 BCM",
     river: "Mahi River",
     type: "Composite Dam",
@@ -44,7 +44,7 @@ const dams = [
   {
     id: 4,
     name: "Dharoi Dam",
-    position: [23.9167, 72.2833] as [number, number],
+    position: [23.9167, 72.2833],
     capacity: "0.86 BCM",
     river: "Sabarmati River",
     type: "Earth & Rock Fill Dam",
@@ -56,7 +56,7 @@ const dams = [
   {
     id: 5,
     name: "Machhu Dam II",
-    position: [22.4833, 70.7833] as [number, number],
+    position: [22.4833, 70.7833],
     capacity: "0.095 BCM",
     river: "Machhu River",
     type: "Earth & Rock Fill Dam",
@@ -68,7 +68,7 @@ const dams = [
   {
     id: 6,
     name: "Sipu Dam",
-    position: [21.95, 73.1667] as [number, number],
+    position: [21.95, 73.1667],
     capacity: "0.32 BCM",
     river: "Sipu River",
     type: "Earth Dam",
@@ -81,7 +81,7 @@ const dams = [
 ];
 
 // Gujarat boundary coordinates
-const gujaratBoundary: [number, number][] = [
+const gujaratBoundary = [
   [24.7, 68.1],
   [24.8, 69.8],
   [24.5, 71.0],
@@ -98,9 +98,9 @@ const gujaratBoundary: [number, number][] = [
   [24.7, 68.1],
 ];
 
-const GujaratMap: React.FC = () => {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<L.Map | null>(null);
+const GujaratMap = () => {
+  const mapContainer = useRef(null);
+  const map = useRef(null);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -156,7 +156,7 @@ const GujaratMap: React.FC = () => {
     // Add dam markers
     dams.forEach((dam) => {
       const marker = L.marker(dam.position, { icon: damIcon }).addTo(
-        map.current!
+        map.current
       );
 
       const popupContent = `
@@ -196,4 +196,4 @@ const GujaratMap: React.FC = () => {
   );
 };
 
-export default GujaratMap;
+export default GujaratMap; 

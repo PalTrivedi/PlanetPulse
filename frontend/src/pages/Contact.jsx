@@ -17,11 +17,11 @@ const Contact = () => {
     message: "",
   });
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     // Here you would send the contact form to your backend
     toast({
@@ -248,93 +248,14 @@ const Contact = () => {
                     456 Business District, Mumbai 400001
                   </p>
                 </div>
-                <div>
-                  <h4 className="font-semibold">Delhi Office</h4>
-                  <p className="text-sm text-muted-foreground">
-                    789 Tech Hub, New Delhi 110001
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-semibold">Bangalore Office</h4>
-                  <p className="text-sm text-muted-foreground">
-                    321 Innovation Center, Bangalore 560001
-                  </p>
-                </div>
+                {/* Add more offices as needed */}
               </CardContent>
             </Card>
           </div>
         </div>
-
-        {/* FAQ Section */}
-        <section className="mt-16 animate-fade-in">
-          <h2 className="text-3xl font-bold text-primary text-center mb-12">
-            Frequently Asked Questions
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  How accurate are your geological assessments?
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Our ML models achieve 95%+ accuracy rates, validated against
-                  thousands of real-world projects and verified by certified
-                  geological engineers.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  What's the typical turnaround time?
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Standard analyses are completed within 24-48 hours. Complex
-                  projects may take 3-5 business days depending on data
-                  requirements.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  Do you provide on-site consultations?
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Yes, we offer on-site geological surveys and consultations.
-                  Contact us to discuss your specific requirements and
-                  scheduling.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  What regions do you cover?
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Currently, we focus on Indian subcontinent projects, with
-                  expanding coverage to South Asian regions. International
-                  projects considered case-by-case.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
       </div>
     </div>
   );
 };
 
-export default Contact;
+export default Contact; 
