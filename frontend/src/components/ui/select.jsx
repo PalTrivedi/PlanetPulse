@@ -1,13 +1,58 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 
-const Select = React.forwardRef(({ children, ...props }, ref) => {
-  return <div ref={ref} {...props}>{children}</div>;
+const Select = React.forwardRef(({ children, value, onValueChange, ...props }, ref) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedValue, setSelectedValue] = useState(value || "");
+  const selectRef = useRef(null);
+
+  useEffect(() => {
+    setSelectedValue(value || "");
+  }, [value]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (selectRef.current && !selectRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleSelect = (newValue) => {
+    setSelectedValue(newValue);
+    setIsOpen(false);
+    if (onValueChange) {
+      onValueChange(newValue);
+    }
+  };
+
+  const childrenArray = React.Children.toArray(children);
+  const trigger = childrenArray.find(child => child.type === SelectTrigger);
+  const content = childrenArray.find(child => child.type === SelectContent);
+
+  return (
+    <div ref={selectRef} className="relative" {...props}>
+      {React.cloneElement(trigger, {
+        onClick: () => setIsOpen(!isOpen),
+        isOpen,
+        selectedValue
+      })}
+      {isOpen && React.cloneElement(content, {
+        onSelect: handleSelect,
+        selectedValue
+      })}
+    </div>
+  );
 });
 
 Select.displayName = "Select";
 
-const SelectTrigger = React.forwardRef(({ className = "", children, ...props }, ref) => {
+const SelectTrigger = React.forwardRef(({ className = "", children, isOpen, selectedValue, ...props }, ref) => {
   return (
     <button
       ref={ref}
@@ -15,7 +60,7 @@ const SelectTrigger = React.forwardRef(({ className = "", children, ...props }, 
       {...props}
     >
       {children}
-      <ChevronDown className="h-4 w-4 opacity-50" />
+      <ChevronDown className={`h-4 w-4 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
     </button>
   );
 });
@@ -28,25 +73,36 @@ const SelectValue = React.forwardRef(({ placeholder, ...props }, ref) => {
 
 SelectValue.displayName = "SelectValue";
 
-const SelectContent = React.forwardRef(({ className = "", children, ...props }, ref) => {
+const SelectContent = React.forwardRef(({ className = "", children, onSelect, selectedValue, ...props }, ref) => {
+  const childrenArray = React.Children.toArray(children);
+  
   return (
     <div
       ref={ref}
-      className={`relative z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ${className}`}
+      className={`absolute top-full left-0 right-0 z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md mt-1 ${className}`}
       {...props}
     >
-      {children}
+      {childrenArray.map((child, index) => {
+        if (child.type === SelectItem) {
+          return React.cloneElement(child, {
+            key: index,
+            onClick: () => onSelect(child.props.value),
+            isSelected: child.props.value === selectedValue
+          });
+        }
+        return child;
+      })}
     </div>
   );
 });
 
 SelectContent.displayName = "SelectContent";
 
-const SelectItem = React.forwardRef(({ className = "", children, value, ...props }, ref) => {
+const SelectItem = React.forwardRef(({ className = "", children, value, isSelected, ...props }, ref) => {
   return (
     <div
       ref={ref}
-      className={`relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 ${className}`}
+      className={`relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 ${isSelected ? 'bg-accent text-accent-foreground' : ''} ${className}`}
       data-value={value}
       {...props}
     >
