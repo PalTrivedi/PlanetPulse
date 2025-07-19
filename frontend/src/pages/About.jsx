@@ -1,12 +1,15 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Target, Users, Award, Globe } from 'lucide-react';
+import Navbar from '@/components/Navbar';
 
 const About = () => {
   return (
     <div className="min-h-screen bg-background">
+      <Navbar />
+      
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary to-secondary py-20">
+      <div className="bg-gradient-to-r from-primary to-secondary py-20 mt-16">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 animate-fade-in">
             About PlanetPulse
