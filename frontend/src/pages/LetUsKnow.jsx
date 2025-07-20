@@ -104,7 +104,7 @@ const LetUsKnow = () => {
       <Navbar />
       
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary to-secondary py-20 mt-16">
+      <div className="bg-gradient-to-r from-primary to-secondary py-20 mt-24">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 animate-fade-in">
             Let Us Know
