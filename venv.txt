@@ -1,1 +1,3 @@
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+superuser->Pulse
+pass->pulse1234

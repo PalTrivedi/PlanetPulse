@@ -20,7 +20,7 @@ const MapSection = () => {
 
         {/* Map Container */}
         <div className="mb-12 scale-in">
-          <Card className="p-6 bg-card/50 backdrop-blur-sm">
+          <Card className="p-6 bg-card/50 backdrop-blur-sm min-h-[650px]">
             <GujaratMap />
           </Card>
         </div>

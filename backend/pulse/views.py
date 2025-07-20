@@ -6,6 +6,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import json
 import os
+from .models import Dam
+import csv
 
 # Load models at module level (will be loaded when Django starts)
 def load_models():
@@ -285,3 +287,38 @@ def get_suitability_description(level, prediction_type):
     }
     
     return descriptions[prediction_type].get(level, 'Assessment required.')
+
+def dams_list(request):
+    dams = Dam.objects.all()
+    data = [
+        {
+            "id": dam.id,
+            "name": dam.name,
+            "latitude": dam.latitude,
+            "longitude": dam.longitude,
+            "capacity": dam.capacity,
+            "river": dam.river,
+            "type": dam.type,
+            "height": dam.height,
+            "year_completed": dam.year_completed,
+            "purpose": dam.purpose,
+            "description": dam.description,
+        }
+        for dam in dams
+    ]
+    return JsonResponse(data, safe=False)
+
+def dams_csv(request):
+    import os
+    csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Dams_Gujarat.csv')
+    dams = []
+    with open(csv_path, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            try:
+                row['Latitude'] = float(row['Latitude'])
+                row['Longitude'] = float(row['Longitude'])
+            except Exception:
+                continue
+            dams.append(row)
+    return JsonResponse(dams, safe=False)

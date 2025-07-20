@@ -67,8 +67,8 @@ const SelectTrigger = React.forwardRef(({ className = "", children, isOpen, sele
 
 SelectTrigger.displayName = "SelectTrigger";
 
-const SelectValue = React.forwardRef(({ placeholder, ...props }, ref) => {
-  return <span ref={ref} {...props}>{placeholder}</span>;
+const SelectValue = React.forwardRef(({ placeholder, children, ...props }, ref) => {
+  return <span ref={ref} {...props}>{children || placeholder}</span>;
 });
 
 SelectValue.displayName = "SelectValue";

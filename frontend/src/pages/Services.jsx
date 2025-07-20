@@ -1,36 +1,69 @@
-import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import React, { useState } from "react";
+import Navbar from "@/components/Navbar";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   Select,
-  SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle, MapPin, Database, TrendingUp, AlertCircle, Zap, Code } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 
-const Services = () => {
-  const [formData, setFormData] = useState({
+// StepBadge: for numbered steps in How It Works
+function StepBadge({ number }) {
+  return (
+    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-[#a85c2c] to-[#8B4513] text-white font-bold text-lg shadow-md mr-3">
+      {number}
+    </span>
+  );
+}
+
+const SAMPLE_DATA = {
+  projectName: "Narmada Barrage",
+  latitude: 21.7645,
+  longitude: 73.1856,
+  purpose: "hydropower",
+  river: "Narmada",
+  nearestCity: "Bharuch",
+  district: "Narmada",
+  damType: "gravity",
+  seismicZone: "4",
+  elevation: 180,
+  slope: 8,
+  mainSoilType: "Cambisols",
+  secondarySoilType: "Vertisols",
+  length: 2500,
+  maxHeight: 45,
+  rainfall2020: 1450,
+  rainfall2021: 1380,
+  rainfall2022: 1520,
+  rainfall2023: 1600,
+  rainfall2024: 1490,
+  rainfall5YearAvg: 1488,
+  monsoonIntensity: 21.2,
+  notes: "Located in a high rainfall zone, moderate seismic risk, suitable for hydropower and irrigation."
+};
+
+export default function ServicesPage() {
+  const [form, setForm] = useState({
+    projectName: "",
+    latitude: "",
+    longitude: "",
+    purpose: "",
+    river: "",
+    nearestCity: "",
     district: "",
     damType: "",
-    maxHeight: "",
     seismicZone: "",
     elevation: "",
-    length: "",
     slope: "",
     mainSoilType: "",
     secondarySoilType: "",
+    length: "",
+    maxHeight: "",
     rainfall2020: "",
     rainfall2021: "",
     rainfall2022: "",
@@ -38,66 +71,37 @@ const Services = () => {
     rainfall2024: "",
     rainfall5YearAvg: "",
     monsoonIntensity: "",
+    notes: ""
   });
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [predictions, setPredictions] = useState(null);
-  const [apiResponse, setApiResponse] = useState(null);
-  const [errors, setErrors] = useState({});
-
-  // Scroll to top when predictions are loaded
-  useEffect(() => {
-    if (predictions) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [predictions]);
-
-  // Sample data for testing
-  const sampleData = {
-    district: "Ahmedabad",
-    damType: "Gravity",
-    maxHeight: "45.5",
-    seismicZone: "3",
-    elevation: "125.0",
-    length: "180.0",
-    slope: "12.5",
-    mainSoilType: "Vertisols",
-    secondarySoilType: "Cambisols",
-    rainfall2020: "750.0",
-    rainfall2021: "820.0",
-    rainfall2022: "780.0",
-    rainfall2023: "850.0",
-    rainfall2024: "800.0",
-    rainfall5YearAvg: "800.0",
-    monsoonIntensity: "18.5",
+  const handleChange = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleLoadSample = () => {
+    setForm(SAMPLE_DATA);
   };
 
-  const loadSampleData = () => {
-    setFormData(sampleData);
-    toast({
-      title: "Sample Data Loaded",
-      description: "Test data has been loaded into the form.",
-    });
-  };
-
-  const clearForm = () => {
-    setFormData({
+  const handleClear = () => {
+    setForm({
+      projectName: "",
+      latitude: "",
+      longitude: "",
+      purpose: "",
+      river: "",
+      nearestCity: "",
       district: "",
       damType: "",
-      maxHeight: "",
       seismicZone: "",
       elevation: "",
-      length: "",
       slope: "",
       mainSoilType: "",
       secondarySoilType: "",
+      length: "",
+      maxHeight: "",
       rainfall2020: "",
       rainfall2021: "",
       rainfall2022: "",
@@ -105,632 +109,294 @@ const Services = () => {
       rainfall2024: "",
       rainfall5YearAvg: "",
       monsoonIntensity: "",
-    });
-    setPredictions(null);
-    setApiResponse(null);
-    toast({
-      title: "Form Cleared",
-      description: "All form fields have been reset.",
+      notes: ""
     });
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    
-    // Required field validation
-    if (!formData.district.trim()) newErrors.district = 'District is required';
-    if (!formData.damType) newErrors.damType = 'Dam type is required';
-    if (!formData.maxHeight || formData.maxHeight <= 0) newErrors.maxHeight = 'Valid max height is required';
-    if (!formData.seismicZone) newErrors.seismicZone = 'Seismic zone is required';
-    if (!formData.elevation || formData.elevation < 0) newErrors.elevation = 'Valid elevation is required';
-    if (!formData.length || formData.length <= 0) newErrors.length = 'Valid length is required';
-    if (!formData.slope || formData.slope < 0) newErrors.slope = 'Valid slope is required';
-    if (!formData.mainSoilType) newErrors.mainSoilType = 'Main soil type is required';
-    if (!formData.secondarySoilType) newErrors.secondarySoilType = 'Secondary soil type is required';
-    
-    // Rainfall validation
-    const rainfallFields = ['rainfall2020', 'rainfall2021', 'rainfall2022', 'rainfall2023', 'rainfall2024', 'rainfall5YearAvg'];
-    rainfallFields.forEach(field => {
-      if (!formData[field] || formData[field] < 0) {
-        newErrors[field] = 'Valid rainfall value is required';
-      }
-    });
-    
-    if (!formData.monsoonIntensity || formData.monsoonIntensity < 0) {
-      newErrors.monsoonIntensity = 'Valid monsoon intensity is required';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      toast({
-        title: "Validation Error",
-        description: "Please fix the errors in the form before submitting.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    setPredictions(null);
-    setApiResponse(null);
-
+  const handlePredict = async () => {
+    setLoading(true);
+    setResult(null);
+    setError(null);
     try {
-      const response = await fetch('http://localhost:8000/api/predict/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+      const response = await fetch("http://localhost:8000/api/predict/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
       });
-
+      if (!response.ok) throw new Error("Prediction failed");
       const data = await response.json();
-
-      if (response.ok) {
-        setPredictions(data.predictions);
-        setApiResponse(data);
-        toast({
-          title: "Prediction Successful!",
-          description: `Analysis completed using ${data.prediction_method}.`,
-        });
-      } else {
-        toast({
-          title: "Prediction Failed",
-          description: data.error || "An error occurred during prediction.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Connection Error",
-        description: "Unable to connect to the prediction service.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      setResult(data);
+    } catch (err) {
+      setError("Prediction failed. Please try again.");
     }
-  };
-
-  const getScoreColor = (score) => {
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-blue-600";
-    if (score >= 40) return "text-yellow-600";
-    if (score >= 20) return "text-orange-600";
-    return "text-red-600";
-  };
-
-  const getLevelColor = (level) => {
-    switch (level) {
-      case 'Excellent': return "text-green-600 bg-green-50";
-      case 'Good': return "text-blue-600 bg-blue-50";
-      case 'Moderate': return "text-yellow-600 bg-yellow-50";
-      case 'Poor': return "text-orange-600 bg-orange-50";
-      case 'Very Poor': return "text-red-600 bg-red-50";
-      default: return "text-gray-600 bg-gray-50";
-    }
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5dc]">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      
-      {/* Header Section */}
-      <div className="bg-[#8B4513] py-16 mt-24">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Geological Analysis Services
-          </h1>
-          <p className="text-xl text-white/90 max-w-3xl mx-auto">
-            Get comprehensive geological suitability analysis for your dam construction projects using advanced ML models
-          </p>
-        </div>
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-primary to-secondary py-20 mt-24 text-center text-white shadow-lg">
+        <h1 className="text-6xl font-extrabold mb-4 drop-shadow-lg tracking-tight">
+          Geological Analysis Services
+        </h1>
+        <p className="text-xl max-w-2xl mx-auto font-medium opacity-90">
+          Get comprehensive geological suitability analysis for your dam construction projects<br/>using advanced ML models
+        </p>
       </div>
-      
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
-          {/* Form Section */}
-          <Card className="shadow-lg h-fit bg-white border-0">
-            <CardHeader className="bg-[#8B4513] text-white rounded-t-lg">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Database className="h-5 w-5" />
-                Project Analysis Form
-              </CardTitle>
-              <CardDescription className="text-white/90">
-                Enter your project details to get a geological suitability score
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Action Buttons */}
-              <div className="flex gap-2 mb-6">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={loadSampleData}
-                  className="flex items-center gap-2"
-                >
-                  <Zap className="h-4 w-4" />
-                  Load Sample Data
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={clearForm}
-                  className="flex items-center gap-2"
-                >
-                  Clear Form
-                </Button>
+
+      <div className="max-w-6xl mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-2 gap-12">
+        {/* Project Form */}
+        <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-8 backdrop-blur-sm">
+          <h2 className="text-3xl font-bold text-[#5a3217] mb-2">
+            Project Analysis Form
+          </h2>
+          <p className="text-base text-[#5a3217] mb-6 opacity-80">
+            Enter your project details to get a geological suitability score
+          </p>
+
+          <div className="flex gap-4 mb-6">
+            <Button
+              variant="outline"
+              className="rounded-xl border-[#c49a6c] text-[#8B4513] font-semibold hover:bg-[#f5eee6]"
+              onClick={handleLoadSample}
+            >
+              ⚡ Load Sample Data
+            </Button>
+            <Button
+              variant="ghost"
+              className="rounded-xl text-[#8B4513] border border-[#e0d7cc] font-semibold hover:bg-[#f5eee6]"
+              onClick={handleClear}
+            >
+              Clear Form
+            </Button>
+          </div>
+
+          {/* Expanded detailed form */}
+          <div className="space-y-8">
+            {/* General Project Metadata */}
+            <div>
+              <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Project Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Project Name</label>
+                  <Input value={form.projectName} onChange={e => handleChange("projectName", e.target.value)} placeholder="Enter project name" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Latitude</label>
+                  <Input type="number" value={form.latitude} onChange={e => handleChange("latitude", e.target.value)} placeholder="e.g. 23.0205" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Longitude</label>
+                  <Input type="number" value={form.longitude} onChange={e => handleChange("longitude", e.target.value)} placeholder="e.g. 72.5797" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Purpose</label>
+                  <Select value={form.purpose} onValueChange={val => handleChange("purpose", val)}>
+                    <SelectTrigger className="mt-1 bg-white border border-[#d8c6b0] rounded-xl shadow-sm">
+                      <SelectValue placeholder="Select purpose">
+                        {form.purpose ? form.purpose.charAt(0).toUpperCase() + form.purpose.slice(1).replace('_', ' ') : null}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="irrigation">Irrigation</SelectItem>
+                      <SelectItem value="hydropower">Hydropower</SelectItem>
+                      <SelectItem value="flood">Flood Control</SelectItem>
+                      <SelectItem value="water_supply">Water Supply</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">River</label>
+                  <Input value={form.river} onChange={e => handleChange("river", e.target.value)} placeholder="Enter river name" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Nearest City</label>
+                  <Input value={form.nearestCity} onChange={e => handleChange("nearestCity", e.target.value)} placeholder="Enter nearest city" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">District</label>
+                  <Input value={form.district} onChange={e => handleChange("district", e.target.value)} placeholder="Enter district name" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Dam Type</label>
+                  <Select value={form.damType} onValueChange={val => handleChange("damType", val)}>
+                    <SelectTrigger className="mt-1 bg-white border border-[#d8c6b0] rounded-xl shadow-sm">
+                      <SelectValue placeholder="Select dam type">
+                        {form.damType ? form.damType.charAt(0).toUpperCase() + form.damType.slice(1).replace('_', ' ') : null}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="earthen">Earthen</SelectItem>
+                      <SelectItem value="gravity">Gravity</SelectItem>
+                      <SelectItem value="masonry">Masonry</SelectItem>
+                      <SelectItem value="arch">Arch</SelectItem>
+                      <SelectItem value="buttress">Buttress</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+            </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-[#8B4513] border-b border-[#8B4513]/20 pb-2">Basic Information</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="district">District</Label>
-                      <Input
-                        id="district"
-                        value={formData.district}
-                        onChange={(e) => handleInputChange('district', e.target.value)}
-                        placeholder="Enter district name"
-                        required
-                        className={errors.district ? "border-red-500" : ""}
-                      />
-                      {errors.district && (
-                        <p className="text-red-500 text-sm mt-1">{errors.district}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="damType">Dam Type</Label>
-                      <Select 
-                        value={formData.damType} 
-                        onValueChange={(value) => handleInputChange('damType', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select dam type">
-                            {formData.damType || "Select dam type"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Gravity">Gravity</SelectItem>
-                          <SelectItem value="Arch">Arch</SelectItem>
-                          <SelectItem value="Buttress">Buttress</SelectItem>
-                          <SelectItem value="Embankment">Embankment</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+            {/* Geological Model Inputs */}
+            <div>
+              <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Geological Parameters</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Seismic Zone</label>
+                  <Input value={form.seismicZone} onChange={e => handleChange("seismicZone", e.target.value)} placeholder="e.g. 3" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
                 </div>
-
-                {/* Dam Specifications */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-[#8B4513] border-b border-[#8B4513]/20 pb-2">Dam Specifications</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="maxHeight">Max Height (m)</Label>
-                      <Input
-                        id="maxHeight"
-                        type="number"
-                        step="0.1"
-                        value={formData.maxHeight}
-                        onChange={(e) => handleInputChange('maxHeight', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="length">Length (m)</Label>
-                      <Input
-                        id="length"
-                        type="number"
-                        step="0.1"
-                        value={formData.length}
-                        onChange={(e) => handleInputChange('length', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="elevation">Elevation (m)</Label>
-                      <Input
-                        id="elevation"
-                        type="number"
-                        step="0.1"
-                        value={formData.elevation}
-                        onChange={(e) => handleInputChange('elevation', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Elevation (m)</label>
+                  <Input type="number" value={form.elevation} onChange={e => handleChange("elevation", e.target.value)} placeholder="e.g. 120" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
                 </div>
-
-                {/* Geological Parameters */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-[#8B4513] border-b border-[#8B4513]/20 pb-2">Geological Parameters</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="seismicZone">Seismic Zone</Label>
-                      <Select 
-                        value={formData.seismicZone} 
-                        onValueChange={(value) => handleInputChange('seismicZone', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select seismic zone">
-                            {formData.seismicZone ? `Zone ${formData.seismicZone}` : "Select seismic zone"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">Zone 1 (Low)</SelectItem>
-                          <SelectItem value="2">Zone 2 (Low-Moderate)</SelectItem>
-                          <SelectItem value="3">Zone 3 (Moderate)</SelectItem>
-                          <SelectItem value="4">Zone 4 (High)</SelectItem>
-                          <SelectItem value="5">Zone 5 (Very High)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="slope">Slope (degrees)</Label>
-                      <Input
-                        id="slope"
-                        type="number"
-                        step="0.1"
-                        value={formData.slope}
-                        onChange={(e) => handleInputChange('slope', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="mainSoilType">Main Soil Type</Label>
-                      <Select 
-                        value={formData.mainSoilType} 
-                        onValueChange={(value) => handleInputChange('mainSoilType', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select main soil type">
-                            {formData.mainSoilType || "Select main soil type"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Vertisols">Vertisols</SelectItem>
-                          <SelectItem value="Cambisols">Cambisols</SelectItem>
-                          <SelectItem value="Luvisols">Luvisols</SelectItem>
-                          <SelectItem value="Leptosols">Leptosols</SelectItem>
-                          <SelectItem value="Regosols">Regosols</SelectItem>
-                          <SelectItem value="Arenosols">Arenosols</SelectItem>
-                          <SelectItem value="Fluvisols">Fluvisols</SelectItem>
-                          <SelectItem value="Calcisols">Calcisols</SelectItem>
-                          <SelectItem value="Solonchaks">Solonchaks</SelectItem>
-                          <SelectItem value="Lixisols">Lixisols</SelectItem>
-                          <SelectItem value="Unknown">Unknown</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="secondarySoilType">Secondary Soil Type</Label>
-                      <Select 
-                        value={formData.secondarySoilType} 
-                        onValueChange={(value) => handleInputChange('secondarySoilType', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select secondary soil type">
-                            {formData.secondarySoilType || "Select secondary soil type"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Cambisols">Cambisols</SelectItem>
-                          <SelectItem value="Vertisols">Vertisols</SelectItem>
-                          <SelectItem value="Luvisols">Luvisols</SelectItem>
-                          <SelectItem value="Leptosols">Leptosols</SelectItem>
-                          <SelectItem value="Regosols">Regosols</SelectItem>
-                          <SelectItem value="Arenosols">Arenosols</SelectItem>
-                          <SelectItem value="Fluvisols">Fluvisols</SelectItem>
-                          <SelectItem value="Calcisols">Calcisols</SelectItem>
-                          <SelectItem value="Solonchaks">Solonchaks</SelectItem>
-                          <SelectItem value="Lixisols">Lixisols</SelectItem>
-                          <SelectItem value="Unknown">Unknown</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Slope (%)</label>
+                  <Input type="number" value={form.slope} onChange={e => handleChange("slope", e.target.value)} placeholder="e.g. 5" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
                 </div>
-
-                {/* Rainfall Data */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-[#8B4513] border-b border-[#8B4513]/20 pb-2">Rainfall Data (mm)</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="rainfall2020">2020</Label>
-                      <Input
-                        id="rainfall2020"
-                        type="number"
-                        step="0.1"
-                        value={formData.rainfall2020}
-                        onChange={(e) => handleInputChange('rainfall2020', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="rainfall2021">2021</Label>
-                      <Input
-                        id="rainfall2021"
-                        type="number"
-                        step="0.1"
-                        value={formData.rainfall2021}
-                        onChange={(e) => handleInputChange('rainfall2021', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="rainfall2022">2022</Label>
-                      <Input
-                        id="rainfall2022"
-                        type="number"
-                        step="0.1"
-                        value={formData.rainfall2022}
-                        onChange={(e) => handleInputChange('rainfall2022', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="rainfall2023">2023</Label>
-                      <Input
-                        id="rainfall2023"
-                        type="number"
-                        step="0.1"
-                        value={formData.rainfall2023}
-                        onChange={(e) => handleInputChange('rainfall2023', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="rainfall2024">2024</Label>
-                      <Input
-                        id="rainfall2024"
-                        type="number"
-                        step="0.1"
-                        value={formData.rainfall2024}
-                        onChange={(e) => handleInputChange('rainfall2024', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="rainfall5YearAvg">5-Year Avg</Label>
-                      <Input
-                        id="rainfall5YearAvg"
-                        type="number"
-                        step="0.1"
-                        value={formData.rainfall5YearAvg}
-                        onChange={(e) => handleInputChange('rainfall5YearAvg', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Soil Type (Main)</label>
+                  <Input value={form.mainSoilType} onChange={e => handleChange("mainSoilType", e.target.value)} placeholder="e.g. Vertisols" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
                 </div>
-
-                {/* Environmental Parameters */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-[#8B4513] border-b border-[#8B4513]/20 pb-2">Environmental Parameters</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="monsoonIntensity">Monsoon Intensity (mm/wet day)</Label>
-                      <Input
-                        id="monsoonIntensity"
-                        type="number"
-                        step="0.1"
-                        value={formData.monsoonIntensity}
-                        onChange={(e) => handleInputChange('monsoonIntensity', e.target.value)}
-                        placeholder="0.0"
-                        required
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Soil Type (Secondary)</label>
+                  <Input value={form.secondarySoilType} onChange={e => handleChange("secondarySoilType", e.target.value)} placeholder="e.g. Cambisols" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
                 </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Length (m)</label>
+                  <Input type="number" value={form.length} onChange={e => handleChange("length", e.target.value)} placeholder="e.g. 1000" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Max Height above Foundation (m)</label>
+                  <Input type="number" value={form.maxHeight} onChange={e => handleChange("maxHeight", e.target.value)} placeholder="e.g. 20" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+              </div>
+            </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full h-12 text-lg font-semibold bg-[#8B4513] hover:bg-[#8B4513]/90 text-white" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Analyzing Suitability...
-                    </>
-                  ) : (
-                    <>
-                      <TrendingUp className="mr-2 h-5 w-5" />
-                      Analyze Suitability
-                    </>
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+            {/* Climatic Effect Model Inputs */}
+            <div>
+              <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Climatic Parameters</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2020 (mm)</label>
+                  <Input type="number" value={form.rainfall2020} onChange={e => handleChange("rainfall2020", e.target.value)} placeholder="e.g. 1200" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2021 (mm)</label>
+                  <Input type="number" value={form.rainfall2021} onChange={e => handleChange("rainfall2021", e.target.value)} placeholder="e.g. 1300" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2022 (mm)</label>
+                  <Input type="number" value={form.rainfall2022} onChange={e => handleChange("rainfall2022", e.target.value)} placeholder="e.g. 1100" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2023 (mm)</label>
+                  <Input type="number" value={form.rainfall2023} onChange={e => handleChange("rainfall2023", e.target.value)} placeholder="e.g. 1400" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2024 (mm)</label>
+                  <Input type="number" value={form.rainfall2024} onChange={e => handleChange("rainfall2024", e.target.value)} placeholder="e.g. 1500" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 5yr Avg (mm)</label>
+                  <Input type="number" value={form.rainfall5YearAvg} onChange={e => handleChange("rainfall5YearAvg", e.target.value)} placeholder="e.g. 1300" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Monsoon Intensity Avg (mm/wet day)</label>
+                  <Input type="number" value={form.monsoonIntensity} onChange={e => handleChange("monsoonIntensity", e.target.value)} placeholder="e.g. 18.5" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+              </div>
+            </div>
 
-          {/* Results Section */}
-          <div className="space-y-6 sticky top-8">
-            {predictions ? (
-              <>
-                {/* Prediction Method */}
-                <Card className="shadow-lg bg-white border-0">
-                  <CardHeader className="bg-[#8B4513] text-white rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <Code className="h-5 w-5" />
-                      Analysis Method
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <p className="text-[#8B4513] font-medium">
-                      {apiResponse?.prediction_method || "Unknown Method"}
-                    </p>
-                  </CardContent>
-                </Card>
+            {/* Additional Notes */}
+            <div>
+              <label className="text-base font-medium text-[#5a3217] mb-1 block">Additional Notes</label>
+              <Textarea value={form.notes} onChange={e => handleChange("notes", e.target.value)} placeholder="Any special geological or climatic notes" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+            </div>
+          </div>
 
-                {/* Geological Suitability */}
-                <Card className="shadow-lg bg-white border-0">
-                  <CardHeader className="bg-[#8B4513] text-white rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <MapPin className="h-5 w-5" />
-                      Geological Suitability
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-600">Score:</span>
-                        <span className={`text-2xl font-bold ${getScoreColor(predictions.geological_suitability.score)}`}>
-                          {predictions.geological_suitability.score}/100
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-600">Level:</span>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getLevelColor(predictions.geological_suitability.level)}`}>
-                          {predictions.geological_suitability.level}
-                        </span>
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-sm text-gray-700">
-                          {predictions.geological_suitability.description}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Climatic Effects */}
-                <Card className="shadow-lg bg-white border-0">
-                  <CardHeader className="bg-[#8B4513] text-white rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <TrendingUp className="h-5 w-5" />
-                      Climatic Effects
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-600">Score:</span>
-                        <span className={`text-2xl font-bold ${getScoreColor(predictions.climatic_effects.score)}`}>
-                          {predictions.climatic_effects.score}/100
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-600">Level:</span>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getLevelColor(predictions.climatic_effects.level)}`}>
-                          {predictions.climatic_effects.level}
-                        </span>
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-sm text-gray-700">
-                          {predictions.climatic_effects.description}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* API Response */}
-                <Card className="shadow-lg bg-white border-0">
-                  <CardHeader className="bg-[#8B4513] text-white rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <Code className="h-5 w-5" />
-                      Full API Response
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto max-h-64">
-                      <pre className="text-xs">
-                        {JSON.stringify(apiResponse, null, 2)}
-                      </pre>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Overall Assessment */}
-                <Card className="shadow-lg bg-white border-0">
-                  <CardHeader className="bg-[#8B4513] text-white rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2 text-white">
-                      <CheckCircle className="h-5 w-5" />
-                      Analysis Complete
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <p className="text-[#8B4513]">
-                      Both geological and climatic analyses have been completed successfully. 
-                      Review the scores and recommendations above for your dam construction project.
-                    </p>
-                  </CardContent>
-                </Card>
-              </>
-            ) : (
-              <Card className="shadow-lg bg-white border-0">
-                <CardHeader className="bg-[#8B4513] text-white rounded-t-lg">
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    <AlertCircle className="h-5 w-5" />
-                    How It Works
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="space-y-6">
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 bg-[#8B4513] text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
-                        1
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-[#8B4513] mb-1">Data Collection</h3>
-                        <p className="text-gray-600 text-sm">Enter comprehensive geological and environmental data</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 bg-[#8B4513] text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
-                        2
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-[#8B4513] mb-1">ML Analysis</h3>
-                        <p className="text-gray-600 text-sm">Advanced machine learning models process your data</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 bg-[#8B4513] text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
-                        3
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-[#8B4513] mb-1">Suitability Score</h3>
-                        <p className="text-gray-600 text-sm">Receive a comprehensive geological suitability assessment</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="mt-8">
+            <Button
+              className="bg-gradient-to-r from-[#a85c2c] to-[#8B4513] hover:from-[#8B4513] hover:to-[#5a3217] text-white font-semibold px-8 py-3 rounded-xl shadow-lg transition duration-300 w-full text-lg"
+              onClick={handlePredict}
+              disabled={loading}
+            >
+              {loading ? "Predicting..." : "Predict"}
+            </Button>
+            {error && (
+              <div className="mt-4 text-red-600 text-center">{error}</div>
             )}
           </div>
+        </Card>
+
+        {/* Right Column: How It Works, Prediction Result, and API Response */}
+        <div className="flex flex-col gap-6">
+          {/* How It Works (not as long as the form) */}
+          <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-6 backdrop-blur-sm flex flex-col justify-start max-h-[340px] min-h-[220px]">
+            <h2 className="text-3xl font-bold text-[#5a3217] mb-6">
+              How It Works
+            </h2>
+            <ul className="space-y-8 text-[#5a3217]">
+              <li className="flex items-start">
+                <StepBadge number={1} />
+                <div>
+                  <span className="font-semibold text-lg">Data Collection</span>
+                  <div className="text-base opacity-80">Enter comprehensive geological and environmental data</div>
+                </div>
+              </li>
+              <li className="flex items-start">
+                <StepBadge number={2} />
+                <div>
+                  <span className="font-semibold text-lg">ML Analysis</span>
+                  <div className="text-base opacity-80">Advanced machine learning models process your data</div>
+                </div>
+              </li>
+              <li className="flex items-start">
+                <StepBadge number={3} />
+                <div>
+                  <span className="font-semibold text-lg">Suitability Score</span>
+                  <div className="text-base opacity-80">Receive a comprehensive geological suitability assessment</div>
+                </div>
+              </li>
+            </ul>
+          </Card>
+
+          {/* Prediction Result (below How It Works) */}
+          {result && (
+            <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-6 backdrop-blur-sm flex flex-col justify-center">
+              {result.error ? (
+                <span className="text-red-600">{result.error}</span>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-[#5a3217] mb-4">Prediction Results</div>
+                  <div className="mb-2">
+                    <span className="font-semibold text-[#5a3217]">Geological Suitability Score:</span> <b>{result.predictions?.geological_suitability?.score ?? result.geological_score}</b>
+                  </div>
+                  <div className="mb-2">
+                    <span className="font-semibold text-[#5a3217]">Climatic Effect Score:</span> <b>{result.predictions?.climatic_effects?.score ?? result.climatic_score}</b>
+                  </div>
+                  {result.predictions?.geological_suitability?.description && (
+                    <div className="mb-2 text-sm text-[#5a3217]">{result.predictions.geological_suitability.description}</div>
+                  )}
+                  {result.predictions?.climatic_effects?.description && (
+                    <div className="mb-2 text-sm text-[#5a3217]">{result.predictions.climatic_effects.description}</div>
+                  )}
+                </>
+              )}
+            </Card>
+          )}
+
+          {/* Full API Response (scrollable box) */}
+          {result && (
+            <div className="bg-white border border-[#e0d7cc] rounded-xl shadow p-4 max-h-48 overflow-auto text-xs text-[#5a3217]">
+              <div className="font-semibold mb-2">Full API Response</div>
+              <pre className="whitespace-pre-wrap break-all">{JSON.stringify(result, null, 2)}</pre>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
-};
-
-export default Services; 
+}
