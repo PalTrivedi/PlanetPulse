@@ -1,6 +1,7 @@
 import { ArrowRight, MapPin, BarChart3, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
   const features = [
@@ -21,6 +22,8 @@ const Hero = () => {
     },
   ];
 
+  const navigate = useNavigate();
+
   return (
     <section className="min-h-screen flex items-center justify-center px-4 py-20">
       <div className="max-w-7xl mx-auto text-center">
@@ -39,11 +42,16 @@ const Hero = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <Button size="lg" className="group">
+            <Button size="lg" className="group" onClick={() => {
+              const mapSection = document.getElementById('home');
+              if (mapSection) {
+                mapSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}>
               Explore Gujarat Dams
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" onClick={() => navigate('/about')}>
               Learn More
             </Button>
           </div>
