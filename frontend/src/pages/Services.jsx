@@ -48,29 +48,29 @@ const SAMPLE_DATA_1 = {
 };
 
 const SAMPLE_DATA_2 = {
-  projectName: "Sardar Sarovar Extension",
-  latitude: 21.8317,
-  longitude: 73.7493,
-  purpose: "irrigation",
-  river: "Narmada",
-  nearestCity: "Kevadia",
-  district: "Narmada",
-  damType: "gravity",
+  projectName: "Dholi Dhaja Dam Expansion",
+  latitude: 23.0258,
+  longitude: 73.1059,
+  purpose: "water_supply",
+  river: "Sukhi",
+  nearestCity: "Dakor",
+  district: "Kheda",
+  damType: "earthen",
   seismicZone: "3",
-  elevation: 140,
-  slope: 6,
-  mainSoilType: "Vertisols",
-  secondarySoilType: "Inceptisols",
-  length: 1210,
-  maxHeight: 163,
-  rainfall2020: 1100,
-  rainfall2021: 1250,
-  rainfall2022: 980,
-  rainfall2023: 1150,
-  rainfall2024: 1070,
-  rainfall5YearAvg: 1110,
-  monsoonIntensity: 18.3,
-  notes: "Extension of the existing Sardar Sarovar Dam project. Focuses on irrigation and drinking water supply to drought-prone regions of Gujarat. Medium seismic risk area with stable foundation conditions."
+  elevation: 95,
+  slope: 4.5,
+  mainSoilType: "Black Cotton",
+  secondarySoilType: "Alluvial",
+  length: 1850,
+  maxHeight: 25,
+  rainfall2020: 820,
+  rainfall2021: 910,
+  rainfall2022: 785,
+  rainfall2023: 870,
+  rainfall2024: 830,
+  rainfall5YearAvg: 843,
+  monsoonIntensity: 15.7,
+  notes: "Expansion project to increase water storage capacity for agricultural and municipal use. Located in a medium rainfall zone with clay-rich soil. Project includes modernization of irrigation channels and flood control measures. Low to moderate seismic risk area."
 };
 
 export default function ServicesPage() {
@@ -485,8 +485,53 @@ export default function ServicesPage() {
                       <p className="text-sm text-[#5a3217] mt-2">
                         {result.predictions.geological_suitability.level}
                       </p>
+                    </div>
+                  </div>
+                )}
+
+                {result.predictions?.climate_impact && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Climate Impact</h3>
+                    <div className="bg-white p-4 rounded-lg border border-[#e0d7cc]">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">Score:</span>
+                        <span className="font-bold">{result.predictions.climate_impact.score}/100</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                        <div 
+                          className="h-2.5 rounded-full" 
+                          style={{
+                            width: `${result.predictions.climate_impact.score}%`,
+                            background: `linear-gradient(90deg, #1e88e5, #0d47a1)`
+                          }}
+                        />
+                      </div>
                       <p className="text-sm text-[#5a3217] mt-2">
-                        {result.predictions.geological_suitability.description}
+                        {result.predictions.climate_impact.level}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {result.predictions?.overall_suitability && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Overall Suitability</h3>
+                    <div className="bg-white p-4 rounded-lg border border-[#e0d7cc]">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">Score:</span>
+                        <span className="font-bold">{result.predictions.overall_suitability.score}/100</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                        <div 
+                          className="h-2.5 rounded-full" 
+                          style={{
+                            width: `${result.predictions.overall_suitability.score}%`,
+                            background: `linear-gradient(90deg, #4caf50, #2e7d32)`
+                          }}
+                        />
+                      </div>
+                      <p className="text-sm text-[#5a3217] mt-2">
+                        {result.predictions.overall_suitability.level}
                       </p>
                     </div>
                   </div>
