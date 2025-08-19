@@ -165,11 +165,11 @@ const Contact = () => {
                   <div>
                     <h3 className="font-semibold mb-1">Email Us</h3>
                     <p className="text-muted-foreground">
-                      info@planetpulse.com
+                      officialplanetpulse@gmail.com
                     </p>
-                    <p className="text-muted-foreground">
-                      support@planetpulse.com
-                    </p>
+                    {/* <p className="text-muted-foreground">
+                      officialplanetpulse@gmail.com
+                    </p> */}
                   </div>
                 </div>
 

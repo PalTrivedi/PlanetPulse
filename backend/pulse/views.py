@@ -1,6 +1,7 @@
 import pickle
 import pandas as pd
 import numpy as np
+from scipy import stats
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -136,39 +137,48 @@ def predict_suitability(request):
         # Parse JSON data from request
         data = json.loads(request.body)
         
-        # Extract form data
-        form_data = {
-            'district': data.get('district', ''),
-            'damType': data.get('damType', ''),
-            'maxHeight': float(data.get('maxHeight', 0)),
-            'seismicZone': int(data.get('seismicZone', 1)),
-            'elevation': float(data.get('elevation', 0)),
-            'length': float(data.get('length', 0)),
-            'slope': float(data.get('slope', 0)),
-            'mainSoilType': data.get('mainSoilType', ''),
-            'secondarySoilType': data.get('secondarySoilType', ''),
-            'rainfall2020': float(data.get('rainfall2020', 0)),
-            'rainfall2021': float(data.get('rainfall2021', 0)),
-            'rainfall2022': float(data.get('rainfall2022', 0)),
-            'rainfall2023': float(data.get('rainfall2023', 0)),
-            'rainfall2024': float(data.get('rainfall2024', 0)),
-            'rainfall5YearAvg': float(data.get('rainfall5YearAvg', 0)),
-            'monsoonIntensity': float(data.get('monsoonIntensity', 0)),
+        # Default values for required fields
+        default_values = {
+            'district': 'Unknown',
+            'damType': 'Gravity',  # Most common type
+            'maxHeight': 50.0,
+            'seismicZone': 2,  # Medium risk as default
+            'elevation': 100.0,
+            'length': 500.0,
+            'slope': 5.0,
+            'mainSoilType': 'Vertisols',  # Common in Gujarat
+            'secondarySoilType': 'Inceptisols',  # Common secondary type
+            'rainfall2020': 800.0,
+            'rainfall2021': 800.0,
+            'rainfall2022': 800.0,
+            'rainfall2023': 800.0,
+            'rainfall2024': 800.0,
+            'rainfall5YearAvg': 800.0,
+            'monsoonIntensity': 15.0,
         }
         
-        # Use ML models if available, otherwise use fallback
-        if geological_model_data is not None and climate_model_data is not None:
-            # Use ML models
-            geo_features = prepare_geological_features(form_data, geological_model_data)
-            climate_features = prepare_climate_features(form_data, climate_model_data)
-            geological_score = predict_geological_suitability(geo_features, geological_model_data)
-            climate_score = predict_climatic_effects(climate_features, climate_model_data)
-            prediction_method = "ML Models"
-        else:
-            # Use fallback predictions
-            geological_score = fallback_geological_prediction(form_data)
-            climate_score = fallback_climate_prediction(form_data)
-            prediction_method = "Fallback Algorithm"
+        # Extract and validate form data
+        form_data = {}
+        for field, default in default_values.items():
+            value = data.get(field, default)
+            if value == '':  # If empty string, use default
+                value = default
+            try:
+                # Convert to appropriate type
+                if isinstance(default, float):
+                    form_data[field] = float(value)
+                elif isinstance(default, int):
+                    form_data[field] = int(value)
+                else:  # string
+                    form_data[field] = str(value).strip() or default
+            except (ValueError, TypeError):
+                form_data[field] = default
+        
+        # Always use fallback predictions for now
+        # TODO: Fix ML model loading and encoding issues
+        geological_score = fallback_geological_prediction(form_data)
+        climate_score = fallback_climate_prediction(form_data)
+        prediction_method = "Fallback Algorithm"
         
         # Determine suitability levels
         geological_level = get_suitability_level(geological_score)
@@ -202,9 +212,26 @@ def predict_suitability(request):
 
 def prepare_geological_features(form_data, model_data):
     """Prepare geological features for prediction"""
-    # Encode soil types using the saved label encoders
-    main_soil_encoded = model_data['label_encoders']['SoilType_Main'].transform([form_data['mainSoilType']])[0]
-    secondary_soil_encoded = model_data['label_encoders']['SoilType_Secondary'].transform([form_data['secondarySoilType']])[0]
+    # Default soil types (common in training data)
+    DEFAULT_MAIN_SOIL = 'Vertisols'
+    DEFAULT_SECONDARY_SOIL = 'Inceptisols'
+    
+    # Encode soil types using the saved label encoders with fallback for unseen labels
+    try:
+        main_soil = form_data['mainSoilType']
+        if main_soil not in model_data['label_encoders']['SoilType_Main'].classes_:
+            main_soil = DEFAULT_MAIN_SOIL
+        main_soil_encoded = model_data['label_encoders']['SoilType_Main'].transform([main_soil])[0]
+        
+        secondary_soil = form_data['secondarySoilType']
+        if secondary_soil not in model_data['label_encoders']['SoilType_Secondary'].classes_:
+            secondary_soil = DEFAULT_SECONDARY_SOIL
+        secondary_soil_encoded = model_data['label_encoders']['SoilType_Secondary'].transform([secondary_soil])[0]
+    except Exception as e:
+        print(f"Error encoding soil types: {e}")
+        # Fallback to default encoding if there's an error
+        main_soil_encoded = model_data['label_encoders']['SoilType_Main'].transform([DEFAULT_MAIN_SOIL])[0]
+        secondary_soil_encoded = model_data['label_encoders']['SoilType_Secondary'].transform([DEFAULT_SECONDARY_SOIL])[0]
     
     features = [
         form_data['seismicZone'],
@@ -220,17 +247,64 @@ def prepare_geological_features(form_data, model_data):
 
 def prepare_climate_features(form_data, model_data):
     """Prepare climate features for prediction"""
-    features = [
+    # Get base features from form data
+    features = {
+        'Rainfall_2020': form_data['rainfall2020'],
+        'Rainfall_2021': form_data['rainfall2021'],
+        'Rainfall_2022': form_data['rainfall2022'],
+        'Rainfall_2023': form_data['rainfall2023'],
+        'Rainfall_2024': form_data['rainfall2024'],
+        'Rainfall_5yr_Avg': form_data['rainfall5YearAvg'],
+        'MonsoonIntensityAvg(mm/wet_day)': form_data['monsoonIntensity'],
+        # Set default values for other features
+        'RiverFlowRate(m/day)': 0.0,  # These should be provided in the form data
+        'RiverDistance(km)': 0.0,      # These should be provided in the form data
+        'Rainfall_StdDev_5yr': 0.0,
+        'Max_Annual_Rainfall': 0.0,
+        'Min_Annual_Rainfall': 0.0,
+        'Avg_Temperature_5yr': 0.0,
+        'Temperature_StdDev_5yr': 0.0,
+        'Heatwave_Days_PerYear': 0.0,
+        'Flood_Risk_Index': 0.0,
+        'Climate_Vulnerability_Index': 0.0,
+        'Extreme_Rainfall_Days': 0.0,
+        'Rainfall_Mean': 0.0,
+        'Rainfall_StdDev': 0.0,
+        'Rainfall_Range': 0.0,
+        'Rainfall_Trend': 0.0,
+        'Flow_Rainfall_Ratio': 0.0,
+        'River_Impact_Score': 0.0,
+        'Temp_Anomaly': 0.0,
+        'Heat_Stress_Index': 0.0,
+        'Flood_Risk_Adjusted': 0.0,
+        'Climate_Risk_Score': 0.0
+    }
+    
+    # Calculate derived features
+    rainfall_values = [
         form_data['rainfall2020'],
         form_data['rainfall2021'],
         form_data['rainfall2022'],
         form_data['rainfall2023'],
-        form_data['rainfall2024'],
-        form_data['rainfall5YearAvg'],
-        form_data['monsoonIntensity']
+        form_data['rainfall2024']
     ]
     
-    return np.array(features).reshape(1, -1)
+    # Calculate statistics
+    features['Rainfall_Mean'] = np.mean(rainfall_values)
+    features['Rainfall_StdDev'] = np.std(rainfall_values)
+    features['Rainfall_Range'] = max(rainfall_values) - min(rainfall_values)
+    
+    # Calculate trend (simple linear regression slope)
+    if len(rainfall_values) >= 2:
+        x = np.arange(len(rainfall_values))
+        slope, _, _, _, _ = stats.linregress(x, rainfall_values)
+        features['Rainfall_Trend'] = float(slope) if not np.isnan(slope) else 0.0
+    
+    # Create a DataFrame with the expected feature order
+    feature_order = model_data['feature_names'] if 'feature_names' in model_data else features.keys()
+    features_ordered = [features[col] for col in feature_order if col in features]
+    
+    return np.array(features_ordered).reshape(1, -1)
 
 def predict_geological_suitability(features, model_data):
     """Predict geological suitability score"""
@@ -288,7 +362,94 @@ def get_suitability_description(level, prediction_type):
     
     return descriptions[prediction_type].get(level, 'Assessment required.')
 
+@csrf_exempt
+def api_dams_list(request):
+    """List all dams or create a new dam"""
+    if request.method == 'GET':
+        dams = Dam.objects.all()
+        data = [
+            {
+                "id": dam.id,
+                "name": dam.name,
+                "latitude": float(dam.latitude),
+                "longitude": float(dam.longitude),
+                "capacity": dam.capacity,
+                "river": dam.river,
+                "type": dam.type,
+                "height": dam.height,
+                "year_completed": dam.year_completed,
+                "purpose": dam.purpose,
+                "description": dam.description
+            } for dam in dams
+        ]
+        return JsonResponse({"dams": data}, safe=False)
+    
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            dam = Dam.objects.create(
+                name=data.get('name'),
+                latitude=float(data.get('latitude', 0)),
+                longitude=float(data.get('longitude', 0)),
+                capacity=data.get('capacity', ''),
+                river=data.get('river', ''),
+                type=data.get('type', ''),
+                height=data.get('height', ''),
+                year_completed=data.get('year_completed', ''),
+                purpose=data.get('purpose', ''),
+                description=data.get('description', '')
+            )
+            return JsonResponse({
+                "id": dam.id,
+                "message": "Dam created successfully"
+            }, status=201)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+@csrf_exempt
+def api_dam_detail(request, dam_id):
+    """Retrieve, update or delete a dam"""
+    try:
+        dam = Dam.objects.get(id=dam_id)
+    except Dam.DoesNotExist:
+        return JsonResponse({"error": "Dam not found"}, status=404)
+    
+    if request.method == 'GET':
+        return JsonResponse({
+            "id": dam.id,
+            "name": dam.name,
+            "latitude": float(dam.latitude),
+            "longitude": float(dam.longitude),
+            "capacity": dam.capacity,
+            "river": dam.river,
+            "type": dam.type,
+            "height": dam.height,
+            "year_completed": dam.year_completed,
+            "purpose": dam.purpose,
+            "description": dam.description
+        })
+    
+    elif request.method == 'PUT':
+        try:
+            data = json.loads(request.body)
+            for field in ['name', 'capacity', 'river', 'type', 'height', 'year_completed', 'purpose', 'description']:
+                if field in data:
+                    setattr(dam, field, data[field])
+            if 'latitude' in data:
+                dam.latitude = float(data['latitude'])
+            if 'longitude' in data:
+                dam.longitude = float(data['longitude'])
+            dam.save()
+            return JsonResponse({"message": "Dam updated successfully"})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+    
+    elif request.method == 'DELETE':
+        dam.delete()
+        return JsonResponse({"message": "Dam deleted successfully"}, status=204)
+
 def dams_list(request):
+    """Legacy view for HTML response"""
     dams = Dam.objects.all()
     data = [
         {

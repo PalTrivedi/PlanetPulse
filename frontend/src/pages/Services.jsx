@@ -21,7 +21,7 @@ function StepBadge({ number }) {
   );
 }
 
-const SAMPLE_DATA = {
+const SAMPLE_DATA_1 = {
   projectName: "Narmada Barrage",
   latitude: 21.7645,
   longitude: 73.1856,
@@ -45,6 +45,32 @@ const SAMPLE_DATA = {
   rainfall5YearAvg: 1488,
   monsoonIntensity: 21.2,
   notes: "Located in a high rainfall zone, moderate seismic risk, suitable for hydropower and irrigation."
+};
+
+const SAMPLE_DATA_2 = {
+  projectName: "Sardar Sarovar Extension",
+  latitude: 21.8317,
+  longitude: 73.7493,
+  purpose: "irrigation",
+  river: "Narmada",
+  nearestCity: "Kevadia",
+  district: "Narmada",
+  damType: "gravity",
+  seismicZone: "3",
+  elevation: 140,
+  slope: 6,
+  mainSoilType: "Vertisols",
+  secondarySoilType: "Inceptisols",
+  length: 1210,
+  maxHeight: 163,
+  rainfall2020: 1100,
+  rainfall2021: 1250,
+  rainfall2022: 980,
+  rainfall2023: 1150,
+  rainfall2024: 1070,
+  rainfall5YearAvg: 1110,
+  monsoonIntensity: 18.3,
+  notes: "Extension of the existing Sardar Sarovar Dam project. Focuses on irrigation and drinking water supply to drought-prone regions of Gujarat. Medium seismic risk area with stable foundation conditions."
 };
 
 export default function ServicesPage() {
@@ -81,8 +107,12 @@ export default function ServicesPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleLoadSample = () => {
-    setForm(SAMPLE_DATA);
+  const handleLoadSample1 = () => {
+    setForm(SAMPLE_DATA_1);
+  };
+
+  const handleLoadSample2 = () => {
+    setForm(SAMPLE_DATA_2);
   };
 
   const handleClear = () => {
@@ -118,18 +148,65 @@ export default function ServicesPage() {
     setResult(null);
     setError(null);
     try {
+      // Prepare the data in the format expected by the backend
+      const predictionData = {
+        projectName: form.projectName,
+        latitude: parseFloat(form.latitude),
+        longitude: parseFloat(form.longitude),
+        purpose: form.purpose,
+        river: form.river,
+        nearestCity: form.nearestCity,
+        district: form.district,
+        damType: form.damType,
+        seismicZone: form.seismicZone,
+        elevation: parseFloat(form.elevation || 0),
+        slope: parseFloat(form.slope || 0),
+        mainSoilType: form.mainSoilType,
+        secondarySoilType: form.secondarySoilType,
+        length: parseFloat(form.length || 0),
+        maxHeight: parseFloat(form.maxHeight || 0),
+        rainfall2020: parseFloat(form.rainfall2020 || 0),
+        rainfall2021: parseFloat(form.rainfall2021 || 0),
+        rainfall2022: parseFloat(form.rainfall2022 || 0),
+        rainfall2023: parseFloat(form.rainfall2023 || 0),
+        rainfall2024: parseFloat(form.rainfall2024 || 0),
+        rainfall5YearAvg: parseFloat(form.rainfall5YearAvg || 0),
+        monsoonIntensity: parseFloat(form.monsoonIntensity || 0),
+        notes: form.notes
+      };
+
       const response = await fetch("http://localhost:8000/api/predict/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        headers: { 
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCsrfToken()
+        },
+        body: JSON.stringify(predictionData),
+        credentials: 'include' // Important for session/csrf
       });
-      if (!response.ok) throw new Error("Prediction failed");
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Prediction failed");
+      }
+      
       const data = await response.json();
       setResult(data);
     } catch (err) {
-      setError("Prediction failed. Please try again.");
+      console.error("Prediction error:", err);
+      setError(err.message || "Prediction failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  // Helper function to get CSRF token from cookies
+  const getCsrfToken = () => {
+    const cookieValue = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("csrftoken="))
+      ?.split("=")[1];
+    return cookieValue || "";
   };
 
   return (
@@ -141,13 +218,23 @@ export default function ServicesPage() {
           Geological Analysis Services
         </h1>
         <p className="text-xl max-w-2xl mx-auto font-medium opacity-90">
-          Get comprehensive geological suitability analysis for your dam construction projects<br/>using advanced ML models
+          Get comprehensive geological suitability analysis for your dam
+          construction projects
+          <br />
+          using advanced ML models
         </p>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-16 grid grid-cols-1 md:grid-cols-2 gap-12">
-        {/* Project Form */}
-        <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-8 backdrop-blur-sm">
+      <div className="max-w-6xl mx-auto px-4 py-16">
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded">
+            <p>{error}</p>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Project Form */}
+          <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-8 backdrop-blur-sm">
           <h2 className="text-3xl font-bold text-[#5a3217] mb-2">
             Project Analysis Form
           </h2>
@@ -155,14 +242,23 @@ export default function ServicesPage() {
             Enter your project details to get a geological suitability score
           </p>
 
-          <div className="flex gap-4 mb-6">
-            <Button
-              variant="outline"
-              className="rounded-xl border-[#c49a6c] text-[#8B4513] font-semibold hover:bg-[#f5eee6]"
-              onClick={handleLoadSample}
-            >
-              ⚡ Load Sample Data
-            </Button>
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="flex-1 flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="rounded-xl border-[#c49a6c] text-[#8B4513] font-semibold hover:bg-[#f5eee6] flex-1"
+                onClick={handleLoadSample1}
+              >
+                ⚡ Sample 1: Narmada
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl border-[#9c7b4f] text-[#8B4513] font-semibold hover:bg-[#f5eee6] flex-1"
+                onClick={handleLoadSample2}
+              >
+                ⚡ Sample 2: Sardar Sarovar
+              </Button>
+            </div>
             <Button
               variant="ghost"
               className="rounded-xl text-[#8B4513] border border-[#e0d7cc] font-semibold hover:bg-[#f5eee6]"
@@ -333,8 +429,8 @@ export default function ServicesPage() {
 
         {/* Right Column: How It Works, Prediction Result, and API Response */}
         <div className="flex flex-col gap-6">
-          {/* How It Works (not as long as the form) */}
-          <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-6 backdrop-blur-sm flex flex-col justify-start max-h-[340px] min-h-[220px]">
+          {/* How It Works */}
+          <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-6 backdrop-blur-sm">
             <h2 className="text-3xl font-bold text-[#5a3217] mb-6">
               How It Works
             </h2>
@@ -343,58 +439,109 @@ export default function ServicesPage() {
                 <StepBadge number={1} />
                 <div>
                   <span className="font-semibold text-lg">Data Collection</span>
-                  <div className="text-base opacity-80">Enter comprehensive geological and environmental data</div>
+                  <p>Enter your project details and geological parameters.</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <StepBadge number={2} />
                 <div>
-                  <span className="font-semibold text-lg">ML Analysis</span>
-                  <div className="text-base opacity-80">Advanced machine learning models process your data</div>
+                  <span className="font-semibold text-lg">Analysis</span>
+                  <p>Our ML models process the data in real-time.</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <StepBadge number={3} />
                 <div>
-                  <span className="font-semibold text-lg">Suitability Score</span>
-                  <div className="text-base opacity-80">Receive a comprehensive geological suitability assessment</div>
+                  <span className="font-semibold text-lg">Get Results</span>
+                  <p>Receive detailed analysis and recommendations.</p>
                 </div>
               </li>
             </ul>
           </Card>
 
-          {/* Prediction Result (below How It Works) */}
+          {/* Results Section */}
           {result && (
-            <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-6 backdrop-blur-sm flex flex-col justify-center">
-              {result.error ? (
-                <span className="text-red-600">{result.error}</span>
-              ) : (
-                <>
-                  <div className="text-2xl font-bold text-[#5a3217] mb-4">Prediction Results</div>
-                  <div className="mb-2">
-                    <span className="font-semibold text-[#5a3217]">Geological Suitability Score:</span> <b>{result.predictions?.geological_suitability?.score ?? result.geological_score}</b>
+            <div className="space-y-6">
+              <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-6 backdrop-blur-sm">
+                <h2 className="text-2xl font-bold text-[#5a3217] mb-4">Analysis Results</h2>
+                
+                {result.predictions?.geological_suitability && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Geological Suitability</h3>
+                    <div className="bg-white p-4 rounded-lg border border-[#e0d7cc]">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">Score:</span>
+                        <span className="font-bold">{result.predictions.geological_suitability.score}/100</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                        <div 
+                          className="h-2.5 rounded-full" 
+                          style={{
+                            width: `${result.predictions.geological_suitability.score}%`,
+                            background: `linear-gradient(90deg, #a85c2c, #8B4513)`
+                          }}
+                        />
+                      </div>
+                      <p className="text-sm text-[#5a3217] mt-2">
+                        {result.predictions.geological_suitability.level}
+                      </p>
+                      <p className="text-sm text-[#5a3217] mt-2">
+                        {result.predictions.geological_suitability.description}
+                      </p>
+                    </div>
                   </div>
-                  <div className="mb-2">
-                    <span className="font-semibold text-[#5a3217]">Climatic Effect Score:</span> <b>{result.predictions?.climatic_effects?.score ?? result.climatic_score}</b>
-                  </div>
-                  {result.predictions?.geological_suitability?.description && (
-                    <div className="mb-2 text-sm text-[#5a3217]">{result.predictions.geological_suitability.description}</div>
-                  )}
-                  {result.predictions?.climatic_effects?.description && (
-                    <div className="mb-2 text-sm text-[#5a3217]">{result.predictions.climatic_effects.description}</div>
-                  )}
-                </>
-              )}
-            </Card>
-          )}
+                )}
 
-          {/* Full API Response (scrollable box) */}
-          {result && (
-            <div className="bg-white border border-[#e0d7cc] rounded-xl shadow p-4 max-h-48 overflow-auto text-xs text-[#5a3217]">
-              <div className="font-semibold mb-2">Full API Response</div>
-              <pre className="whitespace-pre-wrap break-all">{JSON.stringify(result, null, 2)}</pre>
+                {result.predictions?.climatic_effects && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Climate Impact</h3>
+                    <div className="bg-white p-4 rounded-lg border border-[#e0d7cc]">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">Score:</span>
+                        <span className="font-bold">{result.predictions.climatic_effects.score}/100</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                        <div 
+                          className="h-2.5 rounded-full" 
+                          style={{
+                            width: `${result.predictions.climatic_effects.score}%`,
+                            background: `linear-gradient(90deg, #a85c2c, #8B4513)`
+                          }}
+                        />
+                      </div>
+                      <p className="text-sm text-[#5a3217] mt-2">
+                        {result.predictions.climatic_effects.level}
+                      </p>
+                      <p className="text-sm text-[#5a3217] mt-2">
+                        {result.predictions.climatic_effects.description}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {result.recommendations?.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Recommendations</h3>
+                    <ul className="space-y-2 text-[#5a3217]">
+                      {result.recommendations.map((rec, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className="text-[#a85c2c] mr-2">•</span>
+                          <span>{rec}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </Card>
+
+              {/* Full API Response (scrollable box) */}
+              <div className="bg-white border border-[#e0d7cc] rounded-xl shadow p-4 max-h-48 overflow-auto text-xs text-[#5a3217]">
+                <div className="font-semibold mb-2">Full API Response</div>
+                <pre className="whitespace-pre-wrap break-all">{JSON.stringify(result, null, 2)}</pre>
+              </div>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
