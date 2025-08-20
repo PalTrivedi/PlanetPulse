@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Dam, Contact, LetUsKnow
+from .models import Dam, Contact, LetUsKnow, Feedback
 
 
 @admin.register(Contact)
@@ -16,6 +16,14 @@ class LetUsKnowAdmin(admin.ModelAdmin):
     list_display = ('name', 'email', 'organization', 'created_at', 'is_responded')
     list_filter = ('is_responded', 'created_at')
     search_fields = ('name', 'email', 'organization', 'message')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at',)
+
+
+@admin.register(Feedback)
+class FeedbackAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'created_at')
+    search_fields = ('name', 'email', 'feedback')
     date_hierarchy = 'created_at'
     readonly_fields = ('created_at',)
 

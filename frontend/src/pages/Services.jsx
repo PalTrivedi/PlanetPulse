@@ -37,44 +37,75 @@ const SAMPLE_DATA_1 = {
   secondarySoilType: "Vertisols",
   length: 2500,
   maxHeight: 45,
+  riverDistance: 2.5,
+  riverFlowRate: 1200,
   rainfall2020: 1450,
   rainfall2021: 1380,
   rainfall2022: 1520,
   rainfall2023: 1600,
   rainfall2024: 1490,
   rainfall5YearAvg: 1488,
+  rainfallStdDev5yr: 85.2,
+  maxAnnualRainfall: 1600,
+  minAnnualRainfall: 1380,
   monsoonIntensity: 21.2,
+  extremeRainfallDays: 12,
+  floodRiskIndex: 0.65,
+  cycloneExposure: 0.35,
+  avgTemperature5yr: 28.5,
+  maxTemperatureLast5yr: 42.3,
+  temperatureStdDev5yr: 1.8,
+  heatwaveDaysPerYear: 15,
+  ensoImpactIndex: 0.45,
+  climateVulnerabilityIndex: 0.38,
+  ndvi2025: 0.72,
   notes: "Located in a high rainfall zone, moderate seismic risk, suitable for hydropower and irrigation."
 };
 
 const SAMPLE_DATA_2 = {
-  projectName: "Dholi Dhaja Dam Expansion",
-  latitude: 23.0258,
-  longitude: 73.1059,
-  purpose: "water_supply",
-  river: "Sukhi",
-  nearestCity: "Dakor",
-  district: "Kheda",
+  projectName: "Dholi Dam",
+  latitude: 21.7163,
+  longitude: 73.3277,
+  purpose: "irrigation",
+  river: "Madhumati",
+  nearestCity: "Jhagadia",
+  district: "Bharuch",
   damType: "earthen",
   seismicZone: "3",
-  elevation: 95,
-  slope: 4.5,
-  mainSoilType: "Black Cotton",
-  secondarySoilType: "Alluvial",
-  length: 1850,
-  maxHeight: 25,
-  rainfall2020: 820,
-  rainfall2021: 910,
-  rainfall2022: 785,
-  rainfall2023: 870,
-  rainfall2024: 830,
-  rainfall5YearAvg: 843,
-  monsoonIntensity: 15.7,
+  elevation: 135,
+  slope: 0.0,
+  mainSoilType: "Unknown",
+  secondarySoilType: "Unknown",
+  length: 1280,
+  maxHeight: 36,
+  riverDistance: 16.25,
+  riverFlowRate: 0.0,
+  rainfall2020: 1258.0,
+  rainfall2021: 1312.8,
+  rainfall2022: 1212.0,
+  rainfall2023: 1031.1,
+  rainfall2024: 1816.4,
+  rainfall5YearAvg: 1326.06,
+  rainfallStdDev5yr: 293.79,
+  maxAnnualRainfall: 1816.4,
+  minAnnualRainfall: 1031.1,
+  monsoonIntensity: 15.31,
+  extremeRainfallDays: 0,
+  floodRiskIndex: 0.22,
+  cycloneExposure: 0.0,
+  avgTemperature5yr: 27.27,
+  maxTemperatureLast5yr: 38.01,
+  temperatureStdDev5yr: 4.01,
+  heatwaveDaysPerYear: 0,
+  ensoImpactIndex: 0.0,
+  climateVulnerabilityIndex: 0.42,
+  ndvi2025: 0.65,
   notes: "Expansion project to increase water storage capacity for agricultural and municipal use. Located in a medium rainfall zone with clay-rich soil. Project includes modernization of irrigation channels and flood control measures. Low to moderate seismic risk area."
 };
 
 export default function ServicesPage() {
   const [form, setForm] = useState({
+    // Project Details
     projectName: "",
     latitude: "",
     longitude: "",
@@ -82,6 +113,8 @@ export default function ServicesPage() {
     river: "",
     nearestCity: "",
     district: "",
+    
+    // Geo Features
     damType: "",
     seismicZone: "",
     elevation: "",
@@ -90,13 +123,31 @@ export default function ServicesPage() {
     secondarySoilType: "",
     length: "",
     maxHeight: "",
+    riverDistance: "",
+    riverFlowRate: "",
+    
+    // Climatic Features
     rainfall2020: "",
     rainfall2021: "",
     rainfall2022: "",
     rainfall2023: "",
     rainfall2024: "",
     rainfall5YearAvg: "",
+    rainfallStdDev5yr: "",
+    maxAnnualRainfall: "",
+    minAnnualRainfall: "",
     monsoonIntensity: "",
+    extremeRainfallDays: "",
+    floodRiskIndex: "",
+    cycloneExposure: "",
+    avgTemperature5yr: "",
+    maxTemperatureLast5yr: "",
+    temperatureStdDev5yr: "",
+    heatwaveDaysPerYear: "",
+    ensoImpactIndex: "",
+    climateVulnerabilityIndex: "",
+    ndvi2025: "",
+    
     notes: ""
   });
   const [result, setResult] = useState(null);
@@ -132,13 +183,28 @@ export default function ServicesPage() {
       secondarySoilType: "",
       length: "",
       maxHeight: "",
+      riverDistance: "",
+      riverFlowRate: "",
       rainfall2020: "",
       rainfall2021: "",
       rainfall2022: "",
       rainfall2023: "",
       rainfall2024: "",
       rainfall5YearAvg: "",
+      rainfallStdDev5yr: "",
+      maxAnnualRainfall: "",
+      minAnnualRainfall: "",
       monsoonIntensity: "",
+      extremeRainfallDays: "",
+      floodRiskIndex: "",
+      cycloneExposure: "",
+      avgTemperature5yr: "",
+      maxTemperatureLast5yr: "",
+      temperatureStdDev5yr: "",
+      heatwaveDaysPerYear: "",
+      ensoImpactIndex: "",
+      climateVulnerabilityIndex: "",
+      ndvi2025: "",
       notes: ""
     });
   };
@@ -150,6 +216,7 @@ export default function ServicesPage() {
     try {
       // Prepare the data in the format expected by the backend
       const predictionData = {
+        // Project Details
         projectName: form.projectName,
         latitude: parseFloat(form.latitude),
         longitude: parseFloat(form.longitude),
@@ -157,6 +224,8 @@ export default function ServicesPage() {
         river: form.river,
         nearestCity: form.nearestCity,
         district: form.district,
+        
+        // Geo Features
         damType: form.damType,
         seismicZone: form.seismicZone,
         elevation: parseFloat(form.elevation || 0),
@@ -165,13 +234,31 @@ export default function ServicesPage() {
         secondarySoilType: form.secondarySoilType,
         length: parseFloat(form.length || 0),
         maxHeight: parseFloat(form.maxHeight || 0),
+        riverDistance: parseFloat(form.riverDistance || 0),
+        riverFlowRate: parseFloat(form.riverFlowRate || 0),
+        
+        // Climatic Features
         rainfall2020: parseFloat(form.rainfall2020 || 0),
         rainfall2021: parseFloat(form.rainfall2021 || 0),
         rainfall2022: parseFloat(form.rainfall2022 || 0),
         rainfall2023: parseFloat(form.rainfall2023 || 0),
         rainfall2024: parseFloat(form.rainfall2024 || 0),
         rainfall5YearAvg: parseFloat(form.rainfall5YearAvg || 0),
+        rainfallStdDev5yr: parseFloat(form.rainfallStdDev5yr || 0),
+        maxAnnualRainfall: parseFloat(form.maxAnnualRainfall || 0),
+        minAnnualRainfall: parseFloat(form.minAnnualRainfall || 0),
         monsoonIntensity: parseFloat(form.monsoonIntensity || 0),
+        extremeRainfallDays: parseFloat(form.extremeRainfallDays || 0),
+        floodRiskIndex: parseFloat(form.floodRiskIndex || 0),
+        cycloneExposure: parseFloat(form.cycloneExposure || 0),
+        avgTemperature5yr: parseFloat(form.avgTemperature5yr || 0),
+        maxTemperatureLast5yr: parseFloat(form.maxTemperatureLast5yr || 0),
+        temperatureStdDev5yr: parseFloat(form.temperatureStdDev5yr || 0),
+        heatwaveDaysPerYear: parseFloat(form.heatwaveDaysPerYear || 0),
+        ensoImpactIndex: parseFloat(form.ensoImpactIndex || 0),
+        climateVulnerabilityIndex: parseFloat(form.climateVulnerabilityIndex || 0),
+        ndvi2025: parseFloat(form.ndvi2025 || 0),
+        
         notes: form.notes
       };
 
@@ -249,14 +336,14 @@ export default function ServicesPage() {
                 className="rounded-xl border-[#c49a6c] text-[#8B4513] font-semibold hover:bg-[#f5eee6] flex-1"
                 onClick={handleLoadSample1}
               >
-                ⚡ Sample 1: Narmada
+                ⚡ Sample 1
               </Button>
               <Button
                 variant="outline"
                 className="rounded-xl border-[#9c7b4f] text-[#8B4513] font-semibold hover:bg-[#f5eee6] flex-1"
                 onClick={handleLoadSample2}
               >
-                ⚡ Sample 2: Sardar Sarovar
+                ⚡ Sample 2
               </Button>
             </div>
             <Button
@@ -368,6 +455,14 @@ export default function ServicesPage() {
                   <label className="text-base font-medium text-[#5a3217] mb-1 block">Max Height above Foundation (m)</label>
                   <Input type="number" value={form.maxHeight} onChange={e => handleChange("maxHeight", e.target.value)} placeholder="e.g. 20" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
                 </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">River Distance (km)</label>
+                  <Input type="number" step="0.1" value={form.riverDistance} onChange={e => handleChange("riverDistance", e.target.value)} placeholder="e.g. 2.5" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">River Flow Rate (m³/day)</label>
+                  <Input type="number" value={form.riverFlowRate} onChange={e => handleChange("riverFlowRate", e.target.value)} placeholder="e.g. 1200" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
               </div>
             </div>
 
@@ -398,6 +493,62 @@ export default function ServicesPage() {
                 <div>
                   <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 5yr Avg (mm)</label>
                   <Input type="number" value={form.rainfall5YearAvg} onChange={e => handleChange("rainfall5YearAvg", e.target.value)} placeholder="e.g. 1300" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall StdDev (5yr)</label>
+                  <Input type="number" step="0.1" value={form.rainfallStdDev5yr} onChange={e => handleChange("rainfallStdDev5yr", e.target.value)} placeholder="e.g. 85.2" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Max Annual Rainfall (mm)</label>
+                  <Input type="number" value={form.maxAnnualRainfall} onChange={e => handleChange("maxAnnualRainfall", e.target.value)} placeholder="e.g. 1600" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Min Annual Rainfall (mm)</label>
+                  <Input type="number" value={form.minAnnualRainfall} onChange={e => handleChange("minAnnualRainfall", e.target.value)} placeholder="e.g. 1380" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Monsoon Intensity (mm/wet day)</label>
+                  <Input type="number" step="0.1" value={form.monsoonIntensity} onChange={e => handleChange("monsoonIntensity", e.target.value)} placeholder="e.g. 21.2" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Extreme Rainfall Days</label>
+                  <Input type="number" value={form.extremeRainfallDays} onChange={e => handleChange("extremeRainfallDays", e.target.value)} placeholder="e.g. 12" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Flood Risk Index (0-1)</label>
+                  <Input type="number" step="0.01" min="0" max="1" value={form.floodRiskIndex} onChange={e => handleChange("floodRiskIndex", e.target.value)} placeholder="e.g. 0.65" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Cyclone Exposure (0-1)</label>
+                  <Input type="number" step="0.01" min="0" max="1" value={form.cycloneExposure} onChange={e => handleChange("cycloneExposure", e.target.value)} placeholder="e.g. 0.35" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Avg Temperature 5yr (°C)</label>
+                  <Input type="number" step="0.1" value={form.avgTemperature5yr} onChange={e => handleChange("avgTemperature5yr", e.target.value)} placeholder="e.g. 28.5" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Max Temperature Last 5yr (°C)</label>
+                  <Input type="number" step="0.1" value={form.maxTemperatureLast5yr} onChange={e => handleChange("maxTemperatureLast5yr", e.target.value)} placeholder="e.g. 42.3" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Temperature StdDev 5yr</label>
+                  <Input type="number" step="0.1" value={form.temperatureStdDev5yr} onChange={e => handleChange("temperatureStdDev5yr", e.target.value)} placeholder="e.g. 1.8" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Heatwave Days/Year</label>
+                  <Input type="number" value={form.heatwaveDaysPerYear} onChange={e => handleChange("heatwaveDaysPerYear", e.target.value)} placeholder="e.g. 15" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">ENSO Impact Index (0-1)</label>
+                  <Input type="number" step="0.01" min="0" max="1" value={form.ensoImpactIndex} onChange={e => handleChange("ensoImpactIndex", e.target.value)} placeholder="e.g. 0.45" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Climate Vulnerability Index (0-1)</label>
+                  <Input type="number" step="0.01" min="0" max="1" value={form.climateVulnerabilityIndex} onChange={e => handleChange("climateVulnerabilityIndex", e.target.value)} placeholder="e.g. 0.38" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-base font-medium text-[#5a3217] mb-1 block">NDVI 2025 (0-1)</label>
+                  <Input type="number" step="0.01" min="0" max="1" value={form.ndvi2025} onChange={e => handleChange("ndvi2025", e.target.value)} placeholder="e.g. 0.72" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
                 </div>
                 <div>
                   <label className="text-base font-medium text-[#5a3217] mb-1 block">Monsoon Intensity Avg (mm/wet day)</label>

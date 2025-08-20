@@ -1,204 +1,112 @@
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-import json
-import os
-import csv
-import pickle
-import numpy as np
-from pathlib import Path
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.mail import send_mail
 from django.conf import settings
+from django.utils import timezone
+import json
+import os
+from pathlib import Path
+import joblib
+import csv
 import logging
+
+from .models import Dam, Contact, LetUsKnow, Feedback 
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Load ML models
+# Base directory for model files
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load ML models (entire sklearn pipelines)
 try:
-    # Load geological model
-    with open(os.path.join(BASE_DIR, 'geological_model.pkl'), 'rb') as f:
-        geo_model_data = pickle.load(f)
-    geo_model = geo_model_data['model']
-    geo_scaler = geo_model_data['scaler']
-    geo_encoders = geo_model_data.get('label_encoders', {})
-    
-    # Load climate model if available
-    climate_model = None
-    climate_scaler = None
-    if os.path.exists(os.path.join(BASE_DIR, 'climate_model.pkl')):
-        with open(os.path.join(BASE_DIR, 'climate_model.pkl'), 'rb') as f:
-            climate_model_data = pickle.load(f)
-            climate_model = climate_model_data['model']
-            climate_scaler = climate_model_data.get('scaler')
-            
+    geo_model = joblib.load(os.path.join(BASE_DIR, 'geological_model.pkl'))
+    clim_model = joblib.load(os.path.join(BASE_DIR, 'climatic_model.pkl'))
 except Exception as e:
     logger.error(f"Error loading ML models: {str(e)}")
-    raise
+    geo_model = None
+    clim_model = None
 
-def preprocess_input(data, model_type='geological'):
-    """Preprocess input data for prediction"""
-    try:
-        # Create a copy of input data
-        processed = data.copy()
-        
-        # Convert numeric fields - including all model features
-        numeric_fields = [
-            'seismic_zone',     # Seismic_Zone
-            'elevation',        # Elevation (m)
-            'slope',            # Slope (%)
-            'dam_length',       # Length (m)
-            'max_height',       # Max Height above Foundation (m)
-            'river_distance',   # Additional field if needed
-            'river_flow_rate'   # Additional field if needed
-        ]
-        for field in numeric_fields:
-            if field in processed:
-                processed[field] = float(processed[field]) if processed[field] not in [None, ''] else 0.0
-        
-        # Encode categorical features
-        if model_type == 'geological':
-            categorical_fields = ['main_soil_type', 'secondary_soil_type']
-            for field in categorical_fields:
-                if field in processed and field in geo_encoders:
-                    processed[field] = geo_encoders[field].transform([processed[field]])[0] if processed[field] else 0
-        
-        return processed
-    except Exception as e:
-        logger.error(f"Error in preprocessing: {str(e)}")
-        raise
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def predict_suitability(request):
-    try:
-        # Parse input data
-        data = json.loads(request.body)
-        
-        # Preprocess input for geological prediction
-        geo_input = preprocess_input(data, 'geological')
-        
-        # Prepare feature vector with all 7 required features in the correct order
-        geo_features = [
-            float(geo_input.get('seismic_zone', 0)),        # Seismic_Zone
-            float(geo_input.get('elevation', 0)),           # Elevation (m)
-            float(geo_input.get('slope', 0)),               # Slope (%)
-            int(geo_input.get('main_soil_type', 0)),        # SoilType_Main (encoded)
-            int(geo_input.get('secondary_soil_type', 0)),   # SoilType_Secondary (encoded)
-            float(geo_input.get('dam_length', 0)),          # Length (m)
-            float(geo_input.get('max_height', 0))           # Max Height above Foundation (m)
-        ]
-        
-        # Scale features
-        geo_features_scaled = geo_scaler.transform([geo_features])
-        
-        # Make prediction
-        geo_score = float(geo_model.predict(geo_features_scaled)[0])
-        
-        # Prepare response
-        response = {
-            'status': 'success',
-            'predictions': {
-                'geological_suitability': {
-                    'score': round(geo_score, 2),
-                    'level': get_suitability_level(geo_score)
-                }
-            }
-        }
-        
-        # Add climate prediction
+def preprocess_geo_input(data):
+    feature_order = [
+        'Latitude', 'Longitude', 'Elevation', 'Slope(%)', 'SoilType_Main',
+        'SoilType_Secondary', 'Seismic_Zone', 'Type', 'Length (m)',
+        'Max Height above Foundation (m)', 'RiverDistance(km)', 'RiverFlowRate(m/day)'
+    ]
+    key_mapping = {
+        'latitude': 'Latitude',
+        'longitude': 'Longitude',
+        'elevation': 'Elevation',
+        'slope': 'Slope(%)',
+        'main_soil_type': 'SoilType_Main',
+        'secondary_soil_type': 'SoilType_Secondary',
+        'seismic_zone': 'Seismic_Zone',
+        'type': 'Type',
+        'dam_length': 'Length (m)',
+        'max_height': 'Max Height above Foundation (m)',
+        'river_distance': 'RiverDistance(km)',
+        'river_flow_rate': 'RiverFlowRate(m/day)'
+    }
+    features = []
+    inv_map = {v: k for k, v in key_mapping.items()}
+    for feat_name in feature_order:
+        input_key = inv_map.get(feat_name)
+        val = data.get(input_key, 0)
         try:
-            # Get base values from the request
-            rainfall_5yr_avg = float(data.get('rainfall5YearAvg', 0))
-            monsoon_intensity = float(data.get('monsoonIntensity', 0))
-            elevation = float(data.get('elevation', 0))
-            
-            # Calculate derived features (simplified for demonstration)
-            # In a real scenario, these would be calculated from historical data
-            rainfall_std = rainfall_5yr_avg * 0.15  # 15% of avg as std dev
-            max_rainfall = rainfall_5yr_avg * 1.3   # 30% higher than avg
-            min_rainfall = rainfall_5yr_avg * 0.7   # 30% lower than avg
-            
-            # Prepare all 28 features in the exact order expected by the model
-            climate_features = [
-                rainfall_5yr_avg * 0.9,  # Rainfall_2020
-                rainfall_5yr_avg * 1.0,  # Rainfall_2021
-                rainfall_5yr_avg * 1.1,  # Rainfall_2022
-                rainfall_5yr_avg * 0.95, # Rainfall_2023
-                rainfall_5yr_avg * 1.05, # Rainfall_2024
-                rainfall_5yr_avg,        # Rainfall_5yr_Avg
-                monsoon_intensity,        # MonsoonIntensityAvg(mm/wet_day)
-                150.0,                   # RiverFlowRate(m/day) - example value
-                2.5,                     # RiverDistance(km) - example value
-                rainfall_std,             # Rainfall_StdDev_5yr
-                max_rainfall,             # Max_Annual_Rainfall
-                min_rainfall,             # Min_Annual_Rainfall
-                28.0,                     # Avg_Temperature_5yr - example value
-                2.0,                      # Temperature_StdDev_5yr - example value
-                12,                       # Heatwave_Days_PerYear - example value
-                0.3,                      # Flood_Risk_Index - example value
-                0.4,                      # Climate_Vulnerability_Index - example value
-                8,                        # Extreme_Rainfall_Days - example value
-                rainfall_5yr_avg,         # Rainfall_Mean
-                rainfall_std,             # Rainfall_StdDev
-                max_rainfall - min_rainfall, # Rainfall_Range
-                0.02,                     # Rainfall_Trend - example value
-                0.8,                      # Flow_Rainfall_Ratio - example value
-                0.6,                      # River_Impact_Score - example value
-                0.5,                      # Temp_Anomaly - example value
-                0.4,                      # Heat_Stress_Index - example value
-                0.3,                      # Flood_Risk_Adjusted - example value
-                0.5                       # Climate_Risk_Score - example value
-            ]
-            
-            logger.info(f"Climate features prepared: {[round(x, 2) for x in climate_features]}")
-            
-            # Scale features if scaler is available
-            if climate_scaler and climate_model:
-                climate_features_scaled = climate_scaler.transform([climate_features])
-                logger.info(f"Climate features after scaling: {climate_features_scaled[0].tolist()}")
-                
-                # Make climate prediction
-                climate_impact = float(climate_model.predict(climate_features_scaled)[0])
-                logger.info(f"Climate impact score: {climate_impact}")
-                
-                # Add climate prediction to response
-                response['predictions']['climate_impact'] = {
-                    'score': round(climate_impact, 2),
-                    'level': get_suitability_level(climate_impact),
-                    'features_used': len(climate_features)
-                }
-                
-                # Calculate overall score (weighted average: 60% geological, 40% climate)
-                overall_score = (geo_score * 0.6) + (climate_impact * 0.4)
-                response['predictions']['overall_suitability'] = {
-                    'score': round(overall_score, 2),
-                    'level': get_suitability_level(overall_score)
-                }
-                
-            else:
-                logger.warning("Climate scaler not available, skipping climate prediction")
-                response['warnings'] = 'Climate impact prediction skipped: scaler not available'
-                
-        except Exception as e:
-            logger.error(f"Climate prediction error: {str(e)}", exc_info=True)
-            response['warnings'] = f'Climate impact prediction skipped: {str(e)}'
-            
-        return JsonResponse(response)
-        
-    except json.JSONDecodeError:
-        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
-    except Exception as e:
-        logger.error(f"Prediction error: {str(e)}")
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+            val = float(val)
+        except Exception:
+            val = 0.0
+        features.append(val)
+    return [features]
+
+
+def preprocess_clim_input(data):
+    feature_order = [
+        'Rainfall_2020', 'Rainfall_2021', 'Rainfall_2022', 'Rainfall_2023', 'Rainfall_2024',
+        'Rainfall_5yr_Avg', 'Rainfall_StdDev_5yr', 'Max_Annual_Rainfall', 'Min_Annual_Rainfall',
+        'MonsoonIntensityAvg(mm/wet_day)', 'Extreme_Rainfall_Days', 'Flood_Risk_Index',
+        'Cyclone_Exposure', 'Avg_Temperature_5yr', 'Max_Temperature_Last5yr',
+        'Temperature_StdDev_5yr', 'Heatwave_Days_PerYear', 'ENSO_Impact_Index',
+        'Climate_Vulnerability_Index', 'NDVI_2025(avg)'
+    ]
+    key_mapping = {
+        'rainfall_2020': 'Rainfall_2020',
+        'rainfall_2021': 'Rainfall_2021',
+        'rainfall_2022': 'Rainfall_2022',
+        'rainfall_2023': 'Rainfall_2023',
+        'rainfall_2024': 'Rainfall_2024',
+        'rainfall_5yr_avg': 'Rainfall_5yr_Avg',
+        'rainfall_stddev_5yr': 'Rainfall_StdDev_5yr',
+        'max_annual_rainfall': 'Max_Annual_Rainfall',
+        'min_annual_rainfall': 'Min_Annual_Rainfall',
+        'monsoon_intensity_avg': 'MonsoonIntensityAvg(mm/wet_day)',
+        'extreme_rainfall_days': 'Extreme_Rainfall_Days',
+        'flood_risk_index': 'Flood_Risk_Index',
+        'cyclone_exposure': 'Cyclone_Exposure',
+        'avg_temperature_5yr': 'Avg_Temperature_5yr',
+        'max_temperature_last5yr': 'Max_Temperature_Last5yr',
+        'temperature_stddev_5yr': 'Temperature_StdDev_5yr',
+        'heatwave_days_peryear': 'Heatwave_Days_PerYear',
+        'enso_impact_index': 'ENSO_Impact_Index',
+        'climate_vulnerability_index': 'Climate_Vulnerability_Index',
+        'ndvi_2025_avg': 'NDVI_2025(avg)'
+    }
+    features = []
+    inv_map = {v: k for k, v in key_mapping.items()}
+    for feat_name in feature_order:
+        input_key = inv_map.get(feat_name)
+        val = data.get(input_key, 0)
+        try:
+            val = float(val)
+        except Exception:
+            val = 0.0
+        features.append(val)
+    return [features]
+
 
 def get_suitability_level(score):
-    """Convert numerical score to human-readable level"""
     if score >= 80:
         return 'Excellent'
     elif score >= 70:
@@ -210,91 +118,150 @@ def get_suitability_level(score):
     else:
         return 'Poor'
 
-def dams_list(request):
-    return JsonResponse(list(Dam.objects.values()), safe=False)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def predict_suitability(request):
+    try:
+        data = json.loads(request.body)
+
+        if geo_model is None:
+            return JsonResponse({'status': 'error', 'message': 'Geological model not loaded'}, status=500)
+
+        geo_features = preprocess_geo_input(data)
+        geo_score = geo_model.predict(geo_features)[0]
+
+        response = {
+            'status': 'success',
+            'predictions': {
+                'geological_suitability': {
+                    'score': round(float(geo_score), 2),
+                    'level': get_suitability_level(geo_score)
+                }
+            }
+        }
+
+        if clim_model:
+            try:
+                clim_features = preprocess_clim_input(data)
+                clim_score = clim_model.predict(clim_features)[0]
+                response['predictions']['climate_impact'] = {
+                    'score': round(float(clim_score), 2),
+                    'level': get_suitability_level(clim_score)
+                }
+                overall_score = geo_score * 0.6 + clim_score * 0.4
+                response['predictions']['overall_suitability'] = {
+                    'score': round(overall_score, 2),
+                    'level': get_suitability_level(overall_score)
+                }
+            except Exception as e:
+                logger.error(f"Climate prediction error: {str(e)}")
+                response['warnings'] = f'Climate impact prediction skipped: {str(e)}'
+        else:
+            logger.warning("Climate model not loaded, skipping climate prediction")
+
+        return JsonResponse(response)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"Prediction error: {str(e)}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': 'An error occurred during prediction'}, status=500)
+
 
 def dams_csv(request):
-    csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Dams_Gujarat.csv')
+    """
+    Return JSON list of dams loaded from Dams_Gujarat.csv in the backend folder.
+    Only returns specified fields.
+    """
+    csv_path = Path(__file__).resolve().parent.parent / 'Dams_Gujarat.csv'
+    required_fields = [
+        'Name', 'Latitude', 'Longitude', 'Purpose', 'River', 'Nearest City', 'District', 'Elevation', 'Type',
+        'Length (m)', 'Max Height above Foundation (m)', 'Geological_Suitability_Score', 'Climatic_Effect_Score',
+        'Overall_Suitability_Score', 'Geological_Suitability_Category', 'Climatic_Effect_Category',
+        'Overall_Suitability_Category', 'NearestRiver', 'RiverDistance(km)', 'RiverFlowRate(m/day)'
+    ]
+
     dams = []
-    with open(csv_path, newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            try:
-                row['Latitude'] = float(row['Latitude'])
-                row['Longitude'] = float(row['Longitude'])
-                dams.append(row)
-            except: continue
+    try:
+        with open(csv_path, newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                dam_data = {field: row.get(field, None) for field in required_fields}
+                # Convert numeric fields to floats
+                for numeric_field in [
+                    'Latitude', 'Longitude', 'Elevation', 'Length (m)', 'Max Height above Foundation (m)',
+                    'Geological_Suitability_Score', 'Climatic_Effect_Score', 'Overall_Suitability_Score',
+                    'RiverDistance(km)', 'RiverFlowRate(m/day)'
+                ]:
+                    if dam_data[numeric_field]:
+                        try:
+                            dam_data[numeric_field] = float(dam_data[numeric_field])
+                        except ValueError:
+                            dam_data[numeric_field] = None
+                dams.append(dam_data)
+    except FileNotFoundError:
+        logger.error(f"CSV file not found at {csv_path}")
+        return JsonResponse({'status': 'error', 'message': 'Dams CSV file not found'}, status=500)
+    except Exception as e:
+        logger.error(f"Error reading dams CSV: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': 'Error reading dams data'}, status=500)
+
     return JsonResponse(dams, safe=False)
+
+
+# def dams_csv(request):
+#     """Return CSV file response of all dams from the database."""
+#     dams = Dam.objects.all()
+#     response = HttpResponse(content_type='text/csv')
+#     response['Content-Disposition'] = 'attachment; filename="dams.csv"'
+
+#     writer = csv.writer(response)
+#     writer.writerow(['Name', 'Latitude', 'Longitude', 'Capacity', 'River', 'Type', 'Height', 'Year Completed', 'Purpose', 'Description'])
+
+#     for dam in dams:
+#         writer.writerow([
+#             dam.name, dam.latitude, dam.longitude, dam.capacity, dam.river,
+#             dam.type, dam.height, dam.year_completed, dam.purpose, dam.description
+#         ])
+
+#     return response
+
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def submit_contact_form(request):
     try:
-        logger.info("Starting contact form submission")
         data = json.loads(request.body)
         name = data.get('name', '')
         email = data.get('email', '')
-        subject = data.get('subject', 'No Subject')
+        subject = data.get('subject', '')
         message = data.get('message', '')
-        
-        # Validate required fields
-        if not all([name, email, message]):
-            return JsonResponse({'status': 'error', 'message': 'Name, email, and message are required fields.'}, status=400)
-        
-        # Save the contact form
-        logger.info(f"Saving contact form for {email}")
-        Contact.objects.create(
+
+        contact = Contact.objects.create(
             name=name,
             email=email,
             subject=subject,
-            message=message
+            message=message,
+            created_at=timezone.now()
         )
-        
-        # Send thank you email
-        email_subject = "Thank you for contacting PlanetPulse!"
-        email_message = f"""
-        Dear {name},
-        
-        Thank you for reaching out to PlanetPulse! We've received your message and our team will get back to you within 24-48 hours.
-        
-        Here's a summary of your submission:
-        Subject: {subject}
-        Message: {message}
-        
-        Best regards,
-        The PlanetPulse Team
-        """
-        
-        logger.info(f"Attempting to send email to {email}")
-        try:
-            send_mail(
-                email_subject,
-                email_message.strip(),
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
-            )
-            logger.info(f"Successfully sent email to {email}")
-        except Exception as email_error:
-            logger.error(f"Failed to send email to {email}: {str(email_error)}")
-            # Don't fail the request if email fails, just log it
-            return JsonResponse({
-                'status': 'success', 
-                'message': 'Thank you for contacting us! (Note: Email notification failed, but your message was received)'
-            })
-        
-        return JsonResponse({
-            'status': 'success', 
-            'message': 'Thank you for contacting us! You will receive a confirmation email shortly.'
-        })
-        
+
+        send_mail(
+            subject=f"New Contact Form: {subject}",
+            message=f"From: {name} <{email}>\n\nMessage:\n{message}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],  # changed here
+            fail_silently=True,
+        )
+        send_thank_you_email(name, email)
+        return JsonResponse({'status': 'success', 'message': 'Contact form submitted successfully'})
+
     except json.JSONDecodeError:
-        logger.error("Invalid JSON in request body")
-        return JsonResponse({'status': 'error', 'message': 'Invalid request format'}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
-        error_msg = f"Error in submit_contact_form: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        return JsonResponse({'status': 'error', 'message': 'An error occurred while processing your request. Please try again later.'}, status=500)
+        logger.error(f"Contact form submission error: {str(e)}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': 'Error submitting contact form'}, status=500)
+
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -303,43 +270,78 @@ def submit_letusknow_form(request):
         data = json.loads(request.body)
         name = data.get('name', '')
         email = data.get('email', '')
-        organization = data.get('organization', 'Not specified')
+        organization = data.get('organization', '')
         message = data.get('message', '')
-        
-        # Save the submission
-        LetUsKnow.objects.create(
+
+        letusknow = LetUsKnow.objects.create(
             name=name,
             email=email,
             organization=organization,
-            message=message
+            message=message,
+            created_at=timezone.now()
         )
-        
-        # Send thank you email
-        email_subject = "Thank you for your submission to PlanetPulse!"
-        email_message = f"""
-        Dear {name},
-        
-        Thank you for taking the time to share your information with PlanetPulse! We've received your submission and our team will review it shortly.
-        
-        Here's a summary of your submission:
-        Organization: {organization}
-        Message: {message}
-        
-        We appreciate your contribution to our platform. If we need any additional information, we'll reach out to you at this email address.
-        
-        Best regards,
-        The PlanetPulse Team
-        """
-        
+
         send_mail(
-            email_subject,
-            email_message.strip(),
-            settings.DEFAULT_FROM_EMAIL,
-            [email],
-            fail_silently=False,
+            subject=f"New LetUsKnow Form from {name}",
+            message=f"Organization (Dam Name): {organization}\nEmail: {email}\n\nMessage:\n{message}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],  # changed here
+            fail_silently=True,
         )
-        
-        return JsonResponse({'status': 'success', 'message': 'Thank you for your submission! You will receive a confirmation email shortly.'})
+        send_thank_you_email(name, email)
+
+        return JsonResponse({'status': 'success', 'message': 'LetUsKnow form submitted successfully'})
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
-        logger.error(f"Error in submit_letusknow_form: {str(e)}")
-        return JsonResponse({'status': 'error', 'message': 'An error occurred while processing your submission. Please try again later.'}, status=500)
+        logger.error(f"LetUsKnow form submission error: {str(e)}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': 'Error submitting LetUsKnow form'}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def submit_feedback_form(request):
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '')
+        email = data.get('email', '')
+        feedback_msg = data.get('feedback', '')
+
+        Feedback.objects.create(
+            name=name,
+            email=email,
+            feedback=feedback_msg,
+            created_at=timezone.now()
+        )
+
+        send_mail(
+            subject=f"New Feedback from {name}",
+            message=f"Email: {email}\n\nMessage:\n{feedback_msg}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],  # changed here
+            fail_silently=True,
+        )
+
+        send_thank_you_email(name, email)
+
+        return JsonResponse({'status': 'success', 'message': 'Feedback submitted successfully'})
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"Feedback form submission error: {str(e)}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': 'Error submitting feedback form'}, status=500)
+
+
+def send_thank_you_email(name, email):
+    try:
+        send_mail(
+            subject="Thank You for Reaching Out!",
+            message=f"Dear {name},\n\nThank you for contacting PlanetPulse. We appreciate your input and will respond if necessary.\n\nBest regards,\nTeam PlanetPulse",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send thank-you email to {email}: {str(e)}")
