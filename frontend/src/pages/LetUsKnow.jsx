@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Send } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 // Helper function to get CSRF token
 function getCookie(name) {
@@ -360,6 +361,7 @@ const LetUsKnow = () => {
           </TabsContent>
         </Tabs>
       </div>
+      <Footer/>
     </div>
   );
 };

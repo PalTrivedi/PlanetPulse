@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import MapSection from "@/components/MapSection";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
@@ -14,7 +15,7 @@ const Index = () => {
       <MapSection />
 
       {/* Placeholder sections for navigation */}
-      <section id="services" className="py-20 px-4">
+      {/* <section id="services" className="py-20 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">Our Services</h2>
           <p className="text-muted-foreground">
@@ -50,7 +51,8 @@ const Index = () => {
             Get in touch with our geological analysis experts.
           </p>
         </div>
-      </section>
+      </section> */}
+      <Footer/>
     </div>
   );
 };

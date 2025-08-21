@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Footer from "@/components/Footer";
 import {
   Select,
   SelectTrigger,
@@ -22,85 +23,85 @@ function StepBadge({ number }) {
 }
 
 const SAMPLE_DATA_1 = {
-  projectName: "Narmada Barrage",
-  latitude: 21.7645,
-  longitude: 73.1856,
-  purpose: "hydropower",
-  river: "Narmada",
-  nearestCity: "Bharuch",
-  district: "Narmada",
-  damType: "gravity",
-  seismicZone: "4",
-  elevation: 180,
-  slope: 8,
-  mainSoilType: "Cambisols",
-  secondarySoilType: "Vertisols",
-  length: 2500,
-  maxHeight: 45,
-  riverDistance: 2.5,
-  riverFlowRate: 1200,
-  rainfall2020: 1450,
-  rainfall2021: 1380,
-  rainfall2022: 1520,
-  rainfall2023: 1600,
-  rainfall2024: 1490,
-  rainfall5YearAvg: 1488,
-  rainfallStdDev5yr: 85.2,
-  maxAnnualRainfall: 1600,
-  minAnnualRainfall: 1380,
-  monsoonIntensity: 21.2,
-  extremeRainfallDays: 12,
-  floodRiskIndex: 0.65,
-  cycloneExposure: 0.35,
-  avgTemperature5yr: 28.5,
-  maxTemperatureLast5yr: 42.3,
-  temperatureStdDev5yr: 1.8,
-  heatwaveDaysPerYear: 15,
-  ensoImpactIndex: 0.45,
-  climateVulnerabilityIndex: 0.38,
-  ndvi2025: 0.72,
-  notes: "Located in a high rainfall zone, moderate seismic risk, suitable for hydropower and irrigation."
-};
-
-const SAMPLE_DATA_2 = {
-  projectName: "Dholi Dam",
-  latitude: 21.7163,
-  longitude: 73.3277,
+  projectName: "Bhadar II Dam",
+  latitude: 21.815,
+  longitude: 70.768,
   purpose: "irrigation",
-  river: "Madhumati",
-  nearestCity: "Jhagadia",
-  district: "Bharuch",
+  river: "Bandi",
+  nearestCity: "Dhoraji",
+  district: "Rajkot",
   damType: "earthen",
   seismicZone: "3",
-  elevation: 135,
+  elevation: 105.0,
   slope: 0.0,
   mainSoilType: "Unknown",
   secondarySoilType: "Unknown",
-  length: 1280,
-  maxHeight: 36,
-  riverDistance: 16.25,
+  length: 1350.0,
+  maxHeight: 12.15,
+  riverDistance: 0.0,
   riverFlowRate: 0.0,
-  rainfall2020: 1258.0,
-  rainfall2021: 1312.8,
-  rainfall2022: 1212.0,
-  rainfall2023: 1031.1,
-  rainfall2024: 1816.4,
-  rainfall5YearAvg: 1326.06,
-  rainfallStdDev5yr: 293.79,
-  maxAnnualRainfall: 1816.4,
-  minAnnualRainfall: 1031.1,
-  monsoonIntensity: 15.31,
+  rainfall2020: 1294.3,
+  rainfall2021: 996.6,
+  rainfall2022: 766.5,
+  rainfall2023: 778.6,
+  rainfall2024: 1510.4,
+  rainfall5YearAvg: 1069.28,
+  rainfallStdDev5yr: 326.6,
+  maxAnnualRainfall: 1510.4,
+  minAnnualRainfall: 766.5,
+  monsoonIntensity: 17.4,
   extremeRainfallDays: 0,
-  floodRiskIndex: 0.22,
-  cycloneExposure: 0.0,
-  avgTemperature5yr: 27.27,
-  maxTemperatureLast5yr: 38.01,
-  temperatureStdDev5yr: 4.01,
+  floodRiskIndex: 0.0,
+  cycloneExposure: 0.31,
+  avgTemperature5yr: 26.33,
+  maxTemperatureLast5yr: 36.25,
+  temperatureStdDev5yr: 4.5,
   heatwaveDaysPerYear: 0,
   ensoImpactIndex: 0.0,
-  climateVulnerabilityIndex: 0.42,
-  ndvi2025: 0.65,
-  notes: "Expansion project to increase water storage capacity for agricultural and municipal use. Located in a medium rainfall zone with clay-rich soil. Project includes modernization of irrigation channels and flood control measures. Low to moderate seismic risk area."
+  climateVulnerabilityIndex: 0.31,
+  ndvi2025: 0.73,
+  notes: "Bhadar II Dam is an earthen dam on the Bandi river near Dhoraji, Rajkot. It has a length of 1350 meters and a maximum height of 12.15 meters. The area experiences moderate rainfall with an average of 1069mm annually. The dam is primarily used for irrigation purposes and has good geological suitability."
+};
+
+const SAMPLE_DATA_2 = {
+  projectName: "Bharudia Dam",
+  latitude: 23.5602,
+  longitude: 70.4166,
+  purpose: "irrigation",
+  river: "Bharudia",
+  nearestCity: "Bhachau",
+  district: "Kachchh",
+  damType: "earthen",
+  seismicZone: "5",
+  elevation: 30.0,
+  slope: 0.9,
+  mainSoilType: "Cambisols",
+  secondarySoilType: "Luvisols",
+  length: 2258.0,
+  maxHeight: 11.81,
+  riverDistance: 0.0,
+  riverFlowRate: 0.0,
+  rainfall2020: 695.4,
+  rainfall2021: 497.4,
+  rainfall2022: 732.1,
+  rainfall2023: 620.7,
+  rainfall2024: 569.0,
+  rainfall5YearAvg: 622.92,
+  rainfallStdDev5yr: 94.66,
+  maxAnnualRainfall: 732.1,
+  minAnnualRainfall: 497.4,
+  monsoonIntensity: 19.04,
+  extremeRainfallDays: 0,
+  floodRiskIndex: 0.15,
+  cycloneExposure: 0.0,
+  avgTemperature5yr: 27.12,
+  maxTemperatureLast5yr: 37.52,
+  temperatureStdDev5yr: 5.29,
+  heatwaveDaysPerYear: 0,
+  ensoImpactIndex: 0.0,
+  climateVulnerabilityIndex: 0.15,
+  ndvi2025: 0.79,
+  notes: "Bharudia Dam is located in the Kachchh district near Bhachau. This earthen dam spans 2258 meters with a maximum height of 11.81 meters. The region has a relatively dry climate with an average annual rainfall of 623mm. The dam is situated in a high seismic zone (Zone 5) and is primarily used for irrigation. The area has fair geological conditions and excellent climate resilience."
 };
 
 export default function ServicesPage() {
@@ -208,6 +209,59 @@ export default function ServicesPage() {
       notes: ""
     });
   };
+
+  // Check if form is empty or contains only default values
+  const isFormEmpty = () => {
+    const defaultForm = {
+      projectName: "",
+      latitude: "",
+      longitude: "",
+      purpose: "",
+      river: "",
+      nearestCity: "",
+      district: "",
+      damType: "",
+      seismicZone: "",
+      elevation: "",
+      slope: "",
+      mainSoilType: "",
+      secondarySoilType: "",
+      length: "",
+      maxHeight: "",
+      riverDistance: "",
+      riverFlowRate: "",
+      rainfall2020: "",
+      rainfall2021: "",
+      rainfall2022: "",
+      rainfall2023: "",
+      rainfall2024: "",
+      rainfall5YearAvg: "",
+      rainfallStdDev5yr: "",
+      maxAnnualRainfall: "",
+      minAnnualRainfall: "",
+      monsoonIntensity: "",
+      extremeRainfallDays: "",
+      floodRiskIndex: "",
+      cycloneExposure: "",
+      avgTemperature5yr: "",
+      maxTemperatureLast5yr: "",
+      temperatureStdDev5yr: "",
+      heatwaveDaysPerYear: "",
+      ensoImpactIndex: "",
+      climateVulnerabilityIndex: "",
+      ndvi2025: "",
+      notes: ""
+    };
+
+    return Object.keys(defaultForm).every(key => {
+      const value = form[key];
+      const defaultValue = defaultForm[key];
+      // Check if value is empty or equal to default
+      return value === "" || value === null || value === undefined || value === defaultValue;
+    });
+  };
+
+  const isFormValid = !isFormEmpty();
 
   const handlePredict = async () => {
     setLoading(true);
@@ -322,9 +376,9 @@ export default function ServicesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Project Form */}
           <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-8 backdrop-blur-sm">
-          <h2 className="text-3xl font-bold text-[#5a3217] mb-2">
-            Project Analysis Form
-          </h2>
+            <h2 className="text-3xl font-bold text-[#5a3217] mb-2">
+              Project Analysis Form
+            </h2>
           <p className="text-base text-[#5a3217] mb-6 opacity-80">
             Enter your project details to get a geological suitability score
           </p>
@@ -565,18 +619,22 @@ export default function ServicesPage() {
           </div>
 
           <div className="mt-8">
-            <Button
-              className="bg-gradient-to-r from-[#a85c2c] to-[#8B4513] hover:from-[#8B4513] hover:to-[#5a3217] text-white font-semibold px-8 py-3 rounded-xl shadow-lg transition duration-300 w-full text-lg"
-              onClick={handlePredict}
-              disabled={loading}
-            >
-              {loading ? "Predicting..." : "Predict"}
+                <Button
+                  className={`w-full py-6 font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${
+                    !isFormValid || loading 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-[#8B4513] to-[#A0522D] hover:from-[#A0522D] hover:to-[#8B4513] text-white'
+                  }`}
+                  onClick={handlePredict}
+                  disabled={!isFormValid || loading}
+                  title={!isFormValid ? "Please fill in the form before predicting" : ""}
+                >            {loading ? "Predicting..." : "Predict"}
             </Button>
             {error && (
               <div className="mt-4 text-red-600 text-center">{error}</div>
             )}
           </div>
-        </Card>
+          </Card>
 
         {/* Right Column: How It Works, Prediction Result, and API Response */}
         <div className="flex flex-col gap-6">
@@ -740,6 +798,8 @@ export default function ServicesPage() {
         </div>
         </div>
       </div>
+      <Footer />
     </div>
+    
   );
 }

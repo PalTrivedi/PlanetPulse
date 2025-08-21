@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Target, Users, Award, Globe } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 
 const About = () => {
   return (
@@ -224,6 +225,7 @@ const About = () => {
           </div>
         </section>
       </div>
+      <Footer/>
     </div>
   );
 };
