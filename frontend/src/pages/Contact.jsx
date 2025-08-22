@@ -20,12 +20,51 @@ const Contact = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [errors, setErrors] = useState({});
+
+  const validatePhoneNumber = (phone) => {
+    // Remove all non-digit characters except +, -, (, ) and spaces
+    const cleanPhone = phone.replace(/[^0-9+\-()\s]/g, '');
+    // Count actual digits
+    const digitCount = cleanPhone.replace(/\D/g, '').length;
+    
+    if (phone && (digitCount < 10 || digitCount > 15)) {
+      return 'Phone number must be between 10-15 digits';
+    }
+    return '';
+  };
+
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    // If changing phone number, validate it
+    if (field === 'phone') {
+      // Only allow numbers, +, -, (, ) and spaces
+      const cleanValue = value.replace(/[^0-9+\-()\s]/g, '');
+      setFormData((prev) => ({ ...prev, [field]: cleanValue }));
+      
+      // Validate and set error if any
+      const error = validatePhoneNumber(cleanValue);
+      setErrors((prev) => ({
+        ...prev,
+        phone: error
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    const phoneError = validatePhoneNumber(formData.phone);
+    if (phoneError) {
+      setErrors((prev) => ({
+        ...prev,
+        phone: phoneError
+      }));
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -147,15 +186,22 @@ const Contact = () => {
                   </div>
                   <div>
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        handleInputChange("phone", e.target.value)
-                      }
-                      disabled={isSubmitting}
-                    />
+                    <div>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) =>
+                          handleInputChange("phone", e.target.value)
+                        }
+                        placeholder="+1 (123) 456-7890"
+                        className={errors.phone ? 'border-red-500' : ''}
+                        disabled={isSubmitting}
+                      />
+                      {errors.phone && (
+                        <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
