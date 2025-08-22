@@ -10,102 +10,33 @@ from pathlib import Path
 import joblib
 import csv
 import logging
+import pandas as pd   # FIXED - used for aligning features with ML models
+import numpy as np
 
-from .models import Dam, Contact, LetUsKnow, Feedback 
+from .models import Dam, Contact, LetUsKnow, Feedback
 
-# Configure logging
+# ------------------------------------------------------
+# Logging configuration
+# ------------------------------------------------------
 logger = logging.getLogger(__name__)
 
-# Base directory for model files
+# ------------------------------------------------------
+# Load ML models
+# ------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Load ML models (entire sklearn pipelines)
 try:
-    geo_model = joblib.load(os.path.join(BASE_DIR, 'geological_model.pkl'))
-    clim_model = joblib.load(os.path.join(BASE_DIR, 'climatic_model.pkl'))
+    geo_model_data = joblib.load(os.path.join(BASE_DIR, 'geological_model.pkl'))
+    clim_model_data = joblib.load(os.path.join(BASE_DIR, 'climatic_model.pkl'))  # matches training script
+    geo_model = geo_model_data["model"]
+    clim_model = clim_model_data["model"]
 except Exception as e:
     logger.error(f"Error loading ML models: {str(e)}")
-    geo_model = None
-    clim_model = None
+    geo_model_data, clim_model_data, geo_model, clim_model = None, None, None, None
 
 
-def preprocess_geo_input(data):
-    feature_order = [
-        'Latitude', 'Longitude', 'Elevation', 'Slope(%)', 'SoilType_Main',
-        'SoilType_Secondary', 'Seismic_Zone', 'Type', 'Length (m)',
-        'Max Height above Foundation (m)', 'RiverDistance(km)', 'RiverFlowRate(m/day)'
-    ]
-    key_mapping = {
-        'latitude': 'Latitude',
-        'longitude': 'Longitude',
-        'elevation': 'Elevation',
-        'slope': 'Slope(%)',
-        'main_soil_type': 'SoilType_Main',
-        'secondary_soil_type': 'SoilType_Secondary',
-        'seismic_zone': 'Seismic_Zone',
-        'type': 'Type',
-        'dam_length': 'Length (m)',
-        'max_height': 'Max Height above Foundation (m)',
-        'river_distance': 'RiverDistance(km)',
-        'river_flow_rate': 'RiverFlowRate(m/day)'
-    }
-    features = []
-    inv_map = {v: k for k, v in key_mapping.items()}
-    for feat_name in feature_order:
-        input_key = inv_map.get(feat_name)
-        val = data.get(input_key, 0)
-        try:
-            val = float(val)
-        except Exception:
-            val = 0.0
-        features.append(val)
-    return [features]
-
-
-def preprocess_clim_input(data):
-    feature_order = [
-        'Rainfall_2020', 'Rainfall_2021', 'Rainfall_2022', 'Rainfall_2023', 'Rainfall_2024',
-        'Rainfall_5yr_Avg', 'Rainfall_StdDev_5yr', 'Max_Annual_Rainfall', 'Min_Annual_Rainfall',
-        'MonsoonIntensityAvg(mm/wet_day)', 'Extreme_Rainfall_Days', 'Flood_Risk_Index',
-        'Cyclone_Exposure', 'Avg_Temperature_5yr', 'Max_Temperature_Last5yr',
-        'Temperature_StdDev_5yr', 'Heatwave_Days_PerYear', 'ENSO_Impact_Index',
-        'Climate_Vulnerability_Index', 'NDVI_2025(avg)'
-    ]
-    key_mapping = {
-        'rainfall_2020': 'Rainfall_2020',
-        'rainfall_2021': 'Rainfall_2021',
-        'rainfall_2022': 'Rainfall_2022',
-        'rainfall_2023': 'Rainfall_2023',
-        'rainfall_2024': 'Rainfall_2024',
-        'rainfall_5yr_avg': 'Rainfall_5yr_Avg',
-        'rainfall_stddev_5yr': 'Rainfall_StdDev_5yr',
-        'max_annual_rainfall': 'Max_Annual_Rainfall',
-        'min_annual_rainfall': 'Min_Annual_Rainfall',
-        'monsoon_intensity_avg': 'MonsoonIntensityAvg(mm/wet_day)',
-        'extreme_rainfall_days': 'Extreme_Rainfall_Days',
-        'flood_risk_index': 'Flood_Risk_Index',
-        'cyclone_exposure': 'Cyclone_Exposure',
-        'avg_temperature_5yr': 'Avg_Temperature_5yr',
-        'max_temperature_last5yr': 'Max_Temperature_Last5yr',
-        'temperature_stddev_5yr': 'Temperature_StdDev_5yr',
-        'heatwave_days_peryear': 'Heatwave_Days_PerYear',
-        'enso_impact_index': 'ENSO_Impact_Index',
-        'climate_vulnerability_index': 'Climate_Vulnerability_Index',
-        'ndvi_2025_avg': 'NDVI_2025(avg)'
-    }
-    features = []
-    inv_map = {v: k for k, v in key_mapping.items()}
-    for feat_name in feature_order:
-        input_key = inv_map.get(feat_name)
-        val = data.get(input_key, 0)
-        try:
-            val = float(val)
-        except Exception:
-            val = 0.0
-        features.append(val)
-    return [features]
-
-
+# ------------------------------------------------------
+# Helpers
+# ------------------------------------------------------
 def get_suitability_level(score):
     if score >= 80:
         return 'Excellent'
@@ -119,17 +50,96 @@ def get_suitability_level(score):
         return 'Poor'
 
 
+def send_thank_you_email(name, email):
+    """Send thank-you email after form submissions"""
+    try:
+        send_mail(
+            subject="Thank You for Reaching Out!",
+            message=f"Dear {name},\n\nThank you for contacting PlanetPulse. We appreciate your input and will respond if necessary.\n\nBest regards,\nTeam PlanetPulse",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send thank-you email to {email}: {str(e)}")
+
+
+# ------------------------------------------------------
+# ML Prediction Endpoint
+# ------------------------------------------------------
 @csrf_exempt
 @require_http_methods(["POST"])
 def predict_suitability(request):
     try:
         data = json.loads(request.body)
+        logger.info("Incoming data keys: %s", list(data.keys()))
 
         if geo_model is None:
             return JsonResponse({'status': 'error', 'message': 'Geological model not loaded'}, status=500)
 
-        geo_features = preprocess_geo_input(data)
-        geo_score = geo_model.predict(geo_features)[0]
+        # -------- FEATURE MAPPING (frontend → training features) --------
+        feature_mapping = {
+            # Geo
+            "latitude": "Latitude",
+            "longitude": "Longitude",
+            "elevation": "Elevation",
+            "slope": "Slope(%)",
+            "mainSoilType": "SoilType_Main",
+            "secondarySoilType": "SoilType_Secondary",
+            "seismicZone": "Seismic_Zone",
+            "damType": "Type",
+            "length": "Length (m)",
+            "maxHeight": "Max Height above Foundation (m)",
+            "riverDistance": "RiverDistance(km)",
+            "riverFlowRate": "RiverFlowRate(m/day)",
+            # Climate
+            "rainfall2020": "Rainfall_2020",
+            "rainfall2021": "Rainfall_2021",
+            "rainfall2022": "Rainfall_2022",
+            "rainfall2023": "Rainfall_2023",
+            "rainfall2024": "Rainfall_2024",
+            "rainfall5YearAvg": "Rainfall_5yr_Avg",
+            "rainfallStdDev5yr": "Rainfall_StdDev_5yr",
+            "maxAnnualRainfall": "Max_Annual_Rainfall",
+            "minAnnualRainfall": "Min_Annual_Rainfall",
+            "monsoonIntensity": "MonsoonIntensityAvg(mm/wet_day)",
+            "extremeRainfallDays": "Extreme_Rainfall_Days",
+            "floodRiskIndex": "Flood_Risk_Index",
+            "cycloneExposure": "Cyclone_Exposure",
+            "avgTemperature5yr": "Avg_Temperature_5yr",
+            "maxTemperatureLast5yr": "Max_Temperature_Last5yr",
+            "temperatureStdDev5yr": "Temperature_StdDev_5yr",
+            "heatwaveDaysPerYear": "Heatwave_Days_PerYear",
+            "ensoImpactIndex": "ENSO_Impact_Index",
+            "climateVulnerabilityIndex": "Climate_Vulnerability_Index",
+            "ndvi2025": "NDVI_2025(avg)"
+        }
+
+        # Apply mapping
+        mapped_data = {v: data[k] for k, v in feature_mapping.items() if k in data}
+        logger.info("Mapped data: %s", mapped_data)
+
+        # ---------- Sanitize Input (convert 'Unknown' / non-numeric to 0) ----------
+        for key, val in mapped_data.items():
+            try:
+                if isinstance(val, str) and (val.strip().lower() == "unknown" or not val.strip()):
+                    mapped_data[key] = 0
+                else:
+                    mapped_data[key] = float(val)
+            except Exception:
+                mapped_data[key] = 0
+
+        # -------- Geological Prediction --------
+        try:
+            geo_features = geo_model_data['features']
+            geo_scaler = geo_model_data.get('scaler')
+            geo_df = pd.DataFrame([mapped_data]).reindex(columns=geo_features, fill_value=0)
+            if geo_scaler:
+                geo_df = geo_scaler.transform(geo_df)
+            geo_score = geo_model.predict(geo_df)[0]
+        except Exception as e:
+            logger.error(f"Geo prediction error: {str(e)}", exc_info=True)
+            return JsonResponse({'status': 'error', 'message': f'Geological prediction failed: {str(e)}'}, status=500)
 
         response = {
             'status': 'success',
@@ -141,14 +151,21 @@ def predict_suitability(request):
             }
         }
 
+        # -------- Climatic Prediction --------
         if clim_model:
             try:
-                clim_features = preprocess_clim_input(data)
-                clim_score = clim_model.predict(clim_features)[0]
+                clim_features = clim_model_data['features']
+                clim_scaler = clim_model_data.get('scaler')
+                clim_df = pd.DataFrame([mapped_data]).reindex(columns=clim_features, fill_value=0)
+                if clim_scaler:
+                    clim_df = clim_scaler.transform(clim_df)
+                clim_score = clim_model.predict(clim_df)[0]
+
                 response['predictions']['climate_impact'] = {
                     'score': round(float(clim_score), 2),
                     'level': get_suitability_level(clim_score)
                 }
+
                 overall_score = geo_score * 0.6 + clim_score * 0.4
                 response['predictions']['overall_suitability'] = {
                     'score': round(overall_score, 2),
@@ -169,10 +186,13 @@ def predict_suitability(request):
         return JsonResponse({'status': 'error', 'message': 'An error occurred during prediction'}, status=500)
 
 
+# ------------------------------------------------------
+# CSV Loader
+# ------------------------------------------------------
 def dams_csv(request):
     """
-    Return JSON list of dams loaded from Dams_Gujarat.csv in the backend folder.
-    Only returns specified fields.
+    Return JSON list of dams loaded from Dams_Gujarat.csv.
+    Only returns required fields.
     """
     csv_path = Path(__file__).resolve().parent.parent / 'Dams_Gujarat.csv'
     required_fields = [
@@ -188,7 +208,6 @@ def dams_csv(request):
             reader = csv.DictReader(csvfile)
             for row in reader:
                 dam_data = {field: row.get(field, None) for field in required_fields}
-                # Convert numeric fields to floats
                 for numeric_field in [
                     'Latitude', 'Longitude', 'Elevation', 'Length (m)', 'Max Height above Foundation (m)',
                     'Geological_Suitability_Score', 'Climatic_Effect_Score', 'Overall_Suitability_Score',
@@ -210,24 +229,9 @@ def dams_csv(request):
     return JsonResponse(dams, safe=False)
 
 
-# def dams_csv(request):
-#     """Return CSV file response of all dams from the database."""
-#     dams = Dam.objects.all()
-#     response = HttpResponse(content_type='text/csv')
-#     response['Content-Disposition'] = 'attachment; filename="dams.csv"'
-
-#     writer = csv.writer(response)
-#     writer.writerow(['Name', 'Latitude', 'Longitude', 'Capacity', 'River', 'Type', 'Height', 'Year Completed', 'Purpose', 'Description'])
-
-#     for dam in dams:
-#         writer.writerow([
-#             dam.name, dam.latitude, dam.longitude, dam.capacity, dam.river,
-#             dam.type, dam.height, dam.year_completed, dam.purpose, dam.description
-#         ])
-
-#     return response
-
-
+# ------------------------------------------------------
+# Form Handlers
+# ------------------------------------------------------
 @csrf_exempt
 @require_http_methods(["POST"])
 def submit_contact_form(request):
@@ -238,7 +242,7 @@ def submit_contact_form(request):
         subject = data.get('subject', '')
         message = data.get('message', '')
 
-        contact = Contact.objects.create(
+        Contact.objects.create(
             name=name,
             email=email,
             subject=subject,
@@ -250,12 +254,12 @@ def submit_contact_form(request):
             subject=f"New Contact Form: {subject}",
             message=f"From: {name} <{email}>\n\nMessage:\n{message}",
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],  # changed here
+            recipient_list=[email],
             fail_silently=True,
         )
         send_thank_you_email(name, email)
-        return JsonResponse({'status': 'success', 'message': 'Contact form submitted successfully'})
 
+        return JsonResponse({'status': 'success', 'message': 'Contact form submitted successfully'})
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
@@ -273,7 +277,7 @@ def submit_letusknow_form(request):
         organization = data.get('organization', '')
         message = data.get('message', '')
 
-        letusknow = LetUsKnow.objects.create(
+        LetUsKnow.objects.create(
             name=name,
             email=email,
             organization=organization,
@@ -285,13 +289,12 @@ def submit_letusknow_form(request):
             subject=f"New LetUsKnow Form from {name}",
             message=f"Organization (Dam Name): {organization}\nEmail: {email}\n\nMessage:\n{message}",
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],  # changed here
+            recipient_list=[email],
             fail_silently=True,
         )
         send_thank_you_email(name, email)
 
         return JsonResponse({'status': 'success', 'message': 'LetUsKnow form submitted successfully'})
-
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
@@ -319,29 +322,14 @@ def submit_feedback_form(request):
             subject=f"New Feedback from {name}",
             message=f"Email: {email}\n\nMessage:\n{feedback_msg}",
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],  # changed here
+            recipient_list=[email],
             fail_silently=True,
         )
-
         send_thank_you_email(name, email)
 
         return JsonResponse({'status': 'success', 'message': 'Feedback submitted successfully'})
-
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
         logger.error(f"Feedback form submission error: {str(e)}", exc_info=True)
         return JsonResponse({'status': 'error', 'message': 'Error submitting feedback form'}, status=500)
-
-
-def send_thank_you_email(name, email):
-    try:
-        send_mail(
-            subject="Thank You for Reaching Out!",
-            message=f"Dear {name},\n\nThank you for contacting PlanetPulse. We appreciate your input and will respond if necessary.\n\nBest regards,\nTeam PlanetPulse",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=True,
-        )
-    except Exception as e:
-        logger.warning(f"Failed to send thank-you email to {email}: {str(e)}")

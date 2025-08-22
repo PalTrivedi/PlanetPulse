@@ -144,3 +144,31 @@ EMAIL_HOST_USER = 'officialplanetpulse@gmail.com'
 EMAIL_HOST_PASSWORD = 'jbvt hvjb uvqz uzmx'  # App password for Gmail
 DEFAULT_FROM_EMAIL = 'PlanetPulse <officialplanetpulse@gmail.com>'
 SERVER_EMAIL = 'officialplanetpulse@gmail.com'
+
+import logging
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {  # send logs to console (your CMD/terminal)
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {  # Django’s own logs
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        '__main__': {  # your views.py logs
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+}
