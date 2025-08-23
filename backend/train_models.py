@@ -82,7 +82,7 @@ def evaluate_model(model, X_train, y_train, X_test, y_test, label=""):
     return results
 
 # ==================================================
-# Geological Model (unchanged)
+# Geological Model 
 # ==================================================
 def train_geological_model(df):
     print("\nTraining Geological Model...")
@@ -138,7 +138,7 @@ def train_geological_model(df):
     return model_data
 
 # ==================================================
-# Climatic Model (improved)
+# Climatic Model
 # ==================================================
 def train_climatic_model(df):
     print("\nTraining Climatic Model...")
