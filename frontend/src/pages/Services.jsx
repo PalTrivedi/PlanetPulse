@@ -105,6 +105,7 @@ const SAMPLE_DATA_2 = {
 };
 
 export default function ServicesPage() {
+  const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState({
     // Project Details
     projectName: "",
@@ -151,12 +152,16 @@ export default function ServicesPage() {
     
     notes: ""
   });
+
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
+  const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
   const handleLoadSample1 = () => {
@@ -265,77 +270,37 @@ export default function ServicesPage() {
 
   const handlePredict = async () => {
     setLoading(true);
-    setResult(null);
     setError(null);
+    
     try {
-      // Prepare the data in the format expected by the backend
-      const predictionData = {
-        // Project Details
-        projectName: form.projectName,
-        latitude: parseFloat(form.latitude),
-        longitude: parseFloat(form.longitude),
-        purpose: form.purpose,
-        river: form.river,
-        nearestCity: form.nearestCity,
-        district: form.district,
-        
-        // Geo Features
-        damType: form.damType,
-        seismicZone: form.seismicZone,
-        elevation: parseFloat(form.elevation || 0),
-        slope: parseFloat(form.slope || 0),
-        mainSoilType: form.mainSoilType,
-        secondarySoilType: form.secondarySoilType,
-        length: parseFloat(form.length || 0),
-        maxHeight: parseFloat(form.maxHeight || 0),
-        riverDistance: parseFloat(form.riverDistance || 0),
-        riverFlowRate: parseFloat(form.riverFlowRate || 0),
-        
-        // Climatic Features
-        rainfall2020: parseFloat(form.rainfall2020 || 0),
-        rainfall2021: parseFloat(form.rainfall2021 || 0),
-        rainfall2022: parseFloat(form.rainfall2022 || 0),
-        rainfall2023: parseFloat(form.rainfall2023 || 0),
-        rainfall2024: parseFloat(form.rainfall2024 || 0),
-        rainfall5YearAvg: parseFloat(form.rainfall5YearAvg || 0),
-        rainfallStdDev5yr: parseFloat(form.rainfallStdDev5yr || 0),
-        maxAnnualRainfall: parseFloat(form.maxAnnualRainfall || 0),
-        minAnnualRainfall: parseFloat(form.minAnnualRainfall || 0),
-        monsoonIntensity: parseFloat(form.monsoonIntensity || 0),
-        extremeRainfallDays: parseFloat(form.extremeRainfallDays || 0),
-        floodRiskIndex: parseFloat(form.floodRiskIndex || 0),
-        cycloneExposure: parseFloat(form.cycloneExposure || 0),
-        avgTemperature5yr: parseFloat(form.avgTemperature5yr || 0),
-        maxTemperatureLast5yr: parseFloat(form.maxTemperatureLast5yr || 0),
-        temperatureStdDev5yr: parseFloat(form.temperatureStdDev5yr || 0),
-        heatwaveDaysPerYear: parseFloat(form.heatwaveDaysPerYear || 0),
-        ensoImpactIndex: parseFloat(form.ensoImpactIndex || 0),
-        climateVulnerabilityIndex: parseFloat(form.climateVulnerabilityIndex || 0),
-        ndvi2025: parseFloat(form.ndvi2025 || 0),
-        
-        notes: form.notes
-      };
-
+      const csrfToken = getCsrfToken();
       const response = await fetch("http://localhost:8000/api/predict/", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": getCsrfToken()
+          "X-CSRFToken": csrfToken,
         },
-        body: JSON.stringify(predictionData),
-        credentials: 'include' // Important for session/csrf
+        body: JSON.stringify(form),
+        credentials: "include",
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || "Prediction failed");
+        throw new Error(`Error: ${response.status}`);
       }
-      
+
       const data = await response.json();
       setResult(data);
+      
+      // Scroll to results after successful prediction
+      setTimeout(() => {
+        const resultsElement = document.getElementById('results-section');
+        if (resultsElement) {
+          resultsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+      
     } catch (err) {
-      console.error("Prediction error:", err);
-      setError(err.message || "Prediction failed. Please try again.");
+      setError(err.message || "An error occurred while making the prediction.");
     } finally {
       setLoading(false);
     }
@@ -348,6 +313,318 @@ export default function ServicesPage() {
       .find((row) => row.startsWith("csrftoken="))
       ?.split("=")[1];
     return cookieValue || "";
+  };
+
+  // Step indicator component
+  const StepIndicator = () => (
+    <div className="flex justify-between items-center mb-8">
+      {[1, 2, 3, 4].map((step) => (
+        <div key={step} className="flex flex-col items-center">
+          <div 
+            className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+              currentStep >= step 
+                ? 'bg-gradient-to-br from-[#a85c2c] to-[#8B4513]' 
+                : 'bg-gray-300'
+            }`}
+          >
+            {step}
+          </div>
+          <span className="text-sm mt-2 text-gray-600">
+            {step === 1 ? 'Project' : 
+             step === 2 ? 'Geography' : 
+             step === 3 ? 'Climate' : 'Review'}
+          </span>
+        </div>
+      ))}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 -z-10">
+        <div 
+          className="h-full bg-gradient-to-r from-[#a85c2c] to-[#8B4513] transition-all duration-300"
+          style={{ width: `${(currentStep - 1) * 33.33}%` }}
+        />
+      </div>
+    </div>
+  );
+
+  // Form steps components
+  const ProjectDetailsStep = () => (
+    <div className="space-y-4">
+      <h3 className="text-xl font-semibold text-[#5a3217] mb-4">Project Information</h3>
+      <Input 
+        placeholder="Project Name" 
+        value={form.projectName}
+        onChange={(e) => handleChange('projectName', e.target.value)}
+        className="mb-4"
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Input 
+          type="number" 
+          placeholder="Latitude" 
+          value={form.latitude}
+          onChange={(e) => handleChange('latitude', e.target.value)}
+        />
+        <Input 
+          type="number" 
+          placeholder="Longitude" 
+          value={form.longitude}
+          onChange={(e) => handleChange('longitude', e.target.value)}
+        />
+      </div>
+      <Input 
+        placeholder="Purpose" 
+        value={form.purpose}
+        onChange={(e) => handleChange('purpose', e.target.value)}
+        className="mb-4"
+      />
+      <Input 
+        placeholder="River" 
+        value={form.river}
+        onChange={(e) => handleChange('river', e.target.value)}
+        className="mb-4"
+      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Input 
+          placeholder="Nearest City" 
+          value={form.nearestCity}
+          onChange={(e) => handleChange('nearestCity', e.target.value)}
+        />
+        <Input 
+          placeholder="District" 
+          value={form.district}
+          onChange={(e) => handleChange('district', e.target.value)}
+        />
+      </div>
+    </div>
+  );
+
+  const GeographyStep = () => (
+    <div className="space-y-4">
+      <h3 className="text-xl font-semibold text-[#5a3217] mb-4">Geographical Features</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Dam Type</label>
+          <Select value={form.damType} onValueChange={(value) => handleChange('damType', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select dam type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="earthen">Earthen</SelectItem>
+              <SelectItem value="concrete">Concrete</SelectItem>
+              <SelectItem value="arch">Arch</SelectItem>
+              <SelectItem value="buttress">Buttress</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Input 
+          type="number"
+          placeholder="Seismic Zone" 
+          value={form.seismicZone}
+          onChange={(e) => handleChange('seismicZone', e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Input 
+          type="number"
+          placeholder="Elevation (m)" 
+          value={form.elevation}
+          onChange={(e) => handleChange('elevation', e.target.value)}
+        />
+        <Input 
+          type="number"
+          placeholder="Slope (degrees)" 
+          value={form.slope}
+          onChange={(e) => handleChange('slope', e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Input 
+          placeholder="Main Soil Type" 
+          value={form.mainSoilType}
+          onChange={(e) => handleChange('mainSoilType', e.target.value)}
+        />
+        <Input 
+          placeholder="Secondary Soil Type" 
+          value={form.secondarySoilType}
+          onChange={(e) => handleChange('secondarySoilType', e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Input 
+          type="number"
+          placeholder="Length (m)" 
+          value={form.length}
+          onChange={(e) => handleChange('length', e.target.value)}
+        />
+        <Input 
+          type="number"
+          placeholder="Max Height (m)" 
+          value={form.maxHeight}
+          onChange={(e) => handleChange('maxHeight', e.target.value)}
+        />
+        <Input 
+          type="number"
+          step="0.0001"
+          placeholder="River Flow Rate (m³/s)" 
+          value={form.riverFlowRate}
+          onChange={(e) => handleChange('riverFlowRate', e.target.value)}
+        />
+      </div>
+    </div>
+  );
+
+  const ClimateStep = () => (
+    <div className="space-y-4">
+      <h3 className="text-xl font-semibold text-[#5a3217] mb-4">Climatic Data</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {[2020, 2021, 2022, 2023, 2024].map(year => (
+          <Input
+            key={year}
+            type="number"
+            placeholder={`Rainfall ${year} (mm)`}
+            value={form[`rainfall${year}`]}
+            onChange={(e) => handleChange(`rainfall${year}`, e.target.value)}
+          />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Input 
+          type="number"
+          step="0.01"
+          placeholder="5-Year Avg Rainfall (mm)" 
+          value={form.rainfall5YearAvg}
+          onChange={(e) => handleChange('rainfall5YearAvg', e.target.value)}
+        />
+        <Input 
+          type="number"
+          step="0.01"
+          placeholder="Rainfall Std Dev" 
+          value={form.rainfallStdDev5yr}
+          onChange={(e) => handleChange('rainfallStdDev5yr', e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Input 
+          type="number"
+          step="0.1"
+          placeholder="Avg Temperature (5yr)" 
+          value={form.avgTemperature5yr}
+          onChange={(e) => handleChange('avgTemperature5yr', e.target.value)}
+        />
+        <Input 
+          type="number"
+          step="0.1"
+          placeholder="Max Temperature (5yr)" 
+          value={form.maxTemperatureLast5yr}
+          onChange={(e) => handleChange('maxTemperatureLast5yr', e.target.value)}
+        />
+      </div>
+      <Textarea
+        placeholder="Additional Notes"
+        className="min-h-[100px]"
+        value={form.notes}
+        onChange={(e) => handleChange('notes', e.target.value)}
+      />
+    </div>
+  );
+
+  const ReviewStep = () => (
+    <div className="space-y-6">
+      <h3 className="text-xl font-semibold text-[#5a3217] mb-4">Review Your Information</h3>
+      
+      <div className="space-y-4">
+        <h4 className="font-medium text-[#8B4513]">Project Details</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+          <div>
+            <p className="text-sm text-gray-500">Project Name</p>
+            <p className="font-medium">{form.projectName || 'Not provided'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Location</p>
+            <p className="font-medium">
+              {[form.latitude, form.longitude].filter(Boolean).length ? 
+                `${form.latitude}, ${form.longitude}` : 'Not provided'}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Purpose</p>
+            <p className="font-medium">{form.purpose || 'Not provided'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">River</p>
+            <p className="font-medium">{form.river || 'Not provided'}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h4 className="font-medium text-[#8B4513] mt-6">Geographical Features</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+          <div>
+            <p className="text-sm text-gray-500">Dam Type</p>
+            <p className="font-medium">{form.damType || 'Not provided'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Seismic Zone</p>
+            <p className="font-medium">{form.seismicZone || 'Not provided'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Elevation</p>
+            <p className="font-medium">{form.elevation ? `${form.elevation} m` : 'Not provided'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Slope</p>
+            <p className="font-medium">{form.slope ? `${form.slope}°` : 'Not provided'}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h4 className="font-medium text-[#8B4513] mt-6">Climate Data</h4>
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <p className="text-sm text-gray-500 mb-2">Rainfall (2020-2024)</p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {[2020, 2021, 2022, 2023, 2024].map(year => (
+              <div key={year} className="text-center">
+                <p className="text-xs text-gray-500">{year}</p>
+                <p className="font-medium">{form[`rainfall${year}`] || '-'} mm</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-500">5-Year Average</p>
+              <p className="font-medium">{form.rainfall5YearAvg || '0'} mm</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Temperature (5yr avg)</p>
+              <p className="font-medium">{form.avgTemperature5yr || '0'}°C</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {form.notes && (
+        <div className="mt-6">
+          <h4 className="font-medium text-[#8B4513] mb-2">Additional Notes</h4>
+          <p className="bg-gray-50 p-4 rounded-lg">{form.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+
+  // Render the current step
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <ProjectDetailsStep />;
+      case 2:
+        return <GeographyStep />;
+      case 3:
+        return <ClimateStep />;
+      case 4:
+        return <ReviewStep />;
+      default:
+        return <ProjectDetailsStep />;
+    }
   };
 
   return (
@@ -375,431 +652,215 @@ export default function ServicesPage() {
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Project Form */}
-          <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-8 backdrop-blur-sm">
+          <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-8 backdrop-blur-sm relative">
             <h2 className="text-3xl font-bold text-[#5a3217] mb-2">
               Project Analysis Form
             </h2>
-          <p className="text-base text-[#5a3217] mb-6 opacity-80">
-            Enter your project details to get a geological suitability score
-          </p>
+            <p className="text-base text-[#5a3217] mb-6 opacity-80">
+              Step {currentStep} of 4: {currentStep === 1 ? 'Project Details' : 
+                                    currentStep === 2 ? 'Geographical Features' :
+                                    currentStep === 3 ? 'Climate Data' : 'Review & Submit'}
+            </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 mb-6">
-            <div className="flex-1 flex flex-col sm:flex-row gap-3">
+            <div className="relative mb-8">
+              <StepIndicator />
+            </div>
+
+            <div className="space-y-6">
+              {renderStep()}
+              
+              <div className="flex justify-between pt-6 border-t border-gray-200">
+                <Button
+                  variant="outline"
+                  onClick={prevStep}
+                  disabled={currentStep === 1}
+                  className={`${currentStep === 1 ? 'invisible' : ''}`}
+                >
+                  Previous
+                </Button>
+                
+                {currentStep < 4 ? (
+                  <Button 
+                    onClick={nextStep}
+                    className="bg-gradient-to-r from-[#a85c2c] to-[#8B4513] hover:from-[#8B4513] hover:to-[#6b3610] text-white"
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handlePredict}
+                    disabled={loading || !isFormValid}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                  >
+                    {loading ? 'Processing...' : 'Submit for Analysis'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Sample Buttons and Result Display */}
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 variant="outline"
                 className="rounded-xl border-[#c49a6c] text-[#8B4513] font-semibold hover:bg-[#f5eee6] flex-1"
                 onClick={handleLoadSample1}
               >
-                ⚡ Sample 1
+                ⚡ Load Sample 1
               </Button>
               <Button
                 variant="outline"
                 className="rounded-xl border-[#9c7b4f] text-[#8B4513] font-semibold hover:bg-[#f5eee6] flex-1"
                 onClick={handleLoadSample2}
               >
-                ⚡ Sample 2
+                ⚡ Load Sample 2
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl border-red-200 text-red-600 font-semibold hover:bg-red-50"
+                onClick={handleClear}
+              >
+                Clear Form
               </Button>
             </div>
-            <Button
-              variant="ghost"
-              className="rounded-xl text-[#8B4513] border border-[#e0d7cc] font-semibold hover:bg-[#f5eee6]"
-              onClick={handleClear}
-            >
-              Clear Form
-            </Button>
-          </div>
 
-          {/* Expanded detailed form */}
-          <div className="space-y-8">
-            {/* General Project Metadata */}
-            <div>
-              <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Project Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Project Name</label>
-                  <Input value={form.projectName} onChange={e => handleChange("projectName", e.target.value)} placeholder="Enter project name" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Latitude</label>
-                  <Input type="number" value={form.latitude} onChange={e => handleChange("latitude", e.target.value)} placeholder="e.g. 23.0205" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Longitude</label>
-                  <Input type="number" value={form.longitude} onChange={e => handleChange("longitude", e.target.value)} placeholder="e.g. 72.5797" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Purpose</label>
-                  <Select value={form.purpose} onValueChange={val => handleChange("purpose", val)}>
-                    <SelectTrigger className="mt-1 bg-white border border-[#d8c6b0] rounded-xl shadow-sm">
-                      <SelectValue placeholder="Select purpose">
-                        {form.purpose ? form.purpose.charAt(0).toUpperCase() + form.purpose.slice(1).replace('_', ' ') : null}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="irrigation">Irrigation</SelectItem>
-                      <SelectItem value="hydropower">Hydropower</SelectItem>
-                      <SelectItem value="flood">Flood Control</SelectItem>
-                      <SelectItem value="water_supply">Water Supply</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">River</label>
-                  <Input value={form.river} onChange={e => handleChange("river", e.target.value)} placeholder="Enter river name" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Nearest City</label>
-                  <Input value={form.nearestCity} onChange={e => handleChange("nearestCity", e.target.value)} placeholder="Enter nearest city" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">District</label>
-                  <Input value={form.district} onChange={e => handleChange("district", e.target.value)} placeholder="Enter district name" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Dam Type</label>
-                  <Select value={form.damType} onValueChange={val => handleChange("damType", val)}>
-                    <SelectTrigger className="mt-1 bg-white border border-[#d8c6b0] rounded-xl shadow-sm">
-                      <SelectValue placeholder="Select dam type">
-                        {form.damType ? form.damType.charAt(0).toUpperCase() + form.damType.slice(1).replace('_', ' ') : null}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="earthen">Earthen</SelectItem>
-                      <SelectItem value="gravity">Gravity</SelectItem>
-                      <SelectItem value="masonry">Masonry</SelectItem>
-                      <SelectItem value="arch">Arch</SelectItem>
-                      <SelectItem value="buttress">Buttress</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Geological Model Inputs */}
-            <div>
-              <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Geological Parameters</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Seismic Zone</label>
-                  <Input value={form.seismicZone} onChange={e => handleChange("seismicZone", e.target.value)} placeholder="e.g. 3" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Elevation (m)</label>
-                  <Input type="number" value={form.elevation} onChange={e => handleChange("elevation", e.target.value)} placeholder="e.g. 120" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Slope (%)</label>
-                  <Input type="number" value={form.slope} onChange={e => handleChange("slope", e.target.value)} placeholder="e.g. 5" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Soil Type (Main)</label>
-                  <Input value={form.mainSoilType} onChange={e => handleChange("mainSoilType", e.target.value)} placeholder="e.g. Vertisols" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Soil Type (Secondary)</label>
-                  <Input value={form.secondarySoilType} onChange={e => handleChange("secondarySoilType", e.target.value)} placeholder="e.g. Cambisols" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Length (m)</label>
-                  <Input type="number" value={form.length} onChange={e => handleChange("length", e.target.value)} placeholder="e.g. 1000" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Max Height above Foundation (m)</label>
-                  <Input type="number" value={form.maxHeight} onChange={e => handleChange("maxHeight", e.target.value)} placeholder="e.g. 20" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">River Distance (km)</label>
-                  <Input type="number" step="0.1" value={form.riverDistance} onChange={e => handleChange("riverDistance", e.target.value)} placeholder="e.g. 2.5" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">River Flow Rate (m³/day)</label>
-                  <Input type="number" value={form.riverFlowRate} onChange={e => handleChange("riverFlowRate", e.target.value)} placeholder="e.g. 1200" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-              </div>
-            </div>
-
-            {/* Climatic Effect Model Inputs */}
-            <div>
-              <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Climatic Parameters</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2020 (mm)</label>
-                  <Input type="number" value={form.rainfall2020} onChange={e => handleChange("rainfall2020", e.target.value)} placeholder="e.g. 1200" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2021 (mm)</label>
-                  <Input type="number" value={form.rainfall2021} onChange={e => handleChange("rainfall2021", e.target.value)} placeholder="e.g. 1300" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2022 (mm)</label>
-                  <Input type="number" value={form.rainfall2022} onChange={e => handleChange("rainfall2022", e.target.value)} placeholder="e.g. 1100" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2023 (mm)</label>
-                  <Input type="number" value={form.rainfall2023} onChange={e => handleChange("rainfall2023", e.target.value)} placeholder="e.g. 1400" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 2024 (mm)</label>
-                  <Input type="number" value={form.rainfall2024} onChange={e => handleChange("rainfall2024", e.target.value)} placeholder="e.g. 1500" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall 5yr Avg (mm)</label>
-                  <Input type="number" value={form.rainfall5YearAvg} onChange={e => handleChange("rainfall5YearAvg", e.target.value)} placeholder="e.g. 1300" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Rainfall StdDev (5yr)</label>
-                  <Input type="number" step="0.1" value={form.rainfallStdDev5yr} onChange={e => handleChange("rainfallStdDev5yr", e.target.value)} placeholder="e.g. 85.2" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Max Annual Rainfall (mm)</label>
-                  <Input type="number" value={form.maxAnnualRainfall} onChange={e => handleChange("maxAnnualRainfall", e.target.value)} placeholder="e.g. 1600" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Min Annual Rainfall (mm)</label>
-                  <Input type="number" value={form.minAnnualRainfall} onChange={e => handleChange("minAnnualRainfall", e.target.value)} placeholder="e.g. 1380" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Monsoon Intensity (mm/wet day)</label>
-                  <Input type="number" step="0.1" value={form.monsoonIntensity} onChange={e => handleChange("monsoonIntensity", e.target.value)} placeholder="e.g. 21.2" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Extreme Rainfall Days</label>
-                  <Input type="number" value={form.extremeRainfallDays} onChange={e => handleChange("extremeRainfallDays", e.target.value)} placeholder="e.g. 12" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Flood Risk Index (0-1)</label>
-                  <Input type="number" step="0.01" min="0" max="1" value={form.floodRiskIndex} onChange={e => handleChange("floodRiskIndex", e.target.value)} placeholder="e.g. 0.65" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Cyclone Exposure (0-1)</label>
-                  <Input type="number" step="0.01" min="0" max="1" value={form.cycloneExposure} onChange={e => handleChange("cycloneExposure", e.target.value)} placeholder="e.g. 0.35" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Avg Temperature 5yr (°C)</label>
-                  <Input type="number" step="0.1" value={form.avgTemperature5yr} onChange={e => handleChange("avgTemperature5yr", e.target.value)} placeholder="e.g. 28.5" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Max Temperature Last 5yr (°C)</label>
-                  <Input type="number" step="0.1" value={form.maxTemperatureLast5yr} onChange={e => handleChange("maxTemperatureLast5yr", e.target.value)} placeholder="e.g. 42.3" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Temperature StdDev 5yr</label>
-                  <Input type="number" step="0.1" value={form.temperatureStdDev5yr} onChange={e => handleChange("temperatureStdDev5yr", e.target.value)} placeholder="e.g. 1.8" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Heatwave Days/Year</label>
-                  <Input type="number" value={form.heatwaveDaysPerYear} onChange={e => handleChange("heatwaveDaysPerYear", e.target.value)} placeholder="e.g. 15" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">ENSO Impact Index (0-1)</label>
-                  <Input type="number" step="0.01" min="0" max="1" value={form.ensoImpactIndex} onChange={e => handleChange("ensoImpactIndex", e.target.value)} placeholder="e.g. 0.45" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Climate Vulnerability Index (0-1)</label>
-                  <Input type="number" step="0.01" min="0" max="1" value={form.climateVulnerabilityIndex} onChange={e => handleChange("climateVulnerabilityIndex", e.target.value)} placeholder="e.g. 0.38" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">NDVI 2025 (0-1)</label>
-                  <Input type="number" step="0.01" min="0" max="1" value={form.ndvi2025} onChange={e => handleChange("ndvi2025", e.target.value)} placeholder="e.g. 0.72" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-                <div>
-                  <label className="text-base font-medium text-[#5a3217] mb-1 block">Monsoon Intensity Avg (mm/wet day)</label>
-                  <Input type="number" value={form.monsoonIntensity} onChange={e => handleChange("monsoonIntensity", e.target.value)} placeholder="e.g. 18.5" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Notes */}
-            <div>
-              <label className="text-base font-medium text-[#5a3217] mb-1 block">Additional Notes</label>
-              <Textarea value={form.notes} onChange={e => handleChange("notes", e.target.value)} placeholder="Any special geological or climatic notes" className="mt-1 rounded-xl border border-[#d8c6b0] bg-white shadow-sm" />
-            </div>
-          </div>
-
-          <div className="mt-8">
-                <Button
-                  className={`w-full py-6 font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${
-                    !isFormValid || loading 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-[#8B4513] to-[#A0522D] hover:from-[#A0522D] hover:to-[#8B4513] text-white'
-                  }`}
-                  onClick={handlePredict}
-                  disabled={!isFormValid || loading}
-                  title={!isFormValid ? "Please fill in the form before predicting" : ""}
-                >            {loading ? "Predicting..." : "Predict"}
-            </Button>
-            {error && (
-              <div className="mt-4 text-red-600 text-center">{error}</div>
-            )}
-          </div>
-          </Card>
-
-        {/* Right Column: How It Works, Prediction Result, and API Response */}
-        <div className="flex flex-col gap-6">
-          {/* How It Works */}
-          <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-6 backdrop-blur-sm">
-            <h2 className="text-3xl font-bold text-[#5a3217] mb-6">
-              How It Works
-            </h2>
-            <ul className="space-y-8 text-[#5a3217]">
-              <li className="flex items-start">
-                <StepBadge number={1} />
-                <div>
-                  <span className="font-semibold text-lg">Data Collection</span>
-                  <p>Enter your project details and geological parameters.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <StepBadge number={2} />
-                <div>
-                  <span className="font-semibold text-lg">Analysis</span>
-                  <p>Our ML models process the data in real-time.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <StepBadge number={3} />
-                <div>
-                  <span className="font-semibold text-lg">Get Results</span>
-                  <p>Receive detailed analysis and recommendations.</p>
-                </div>
-              </li>
-            </ul>
-          </Card>
-
-          {/* Results Section */}
-          {result && (
-            <div className="space-y-6">
-              <Card className="bg-gradient-to-br from-[#fffdf8] to-[#f5eee6] border border-[#e0d7cc] rounded-3xl shadow-[0_8px_30px_rgba(139,69,19,0.10)] p-6 backdrop-blur-sm">
-                <h2 className="text-2xl font-bold text-[#5a3217] mb-4">Analysis Results</h2>
-                
-                {result.predictions?.geological_suitability && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Geological Suitability</h3>
-                    <div className="bg-white p-4 rounded-lg border border-[#e0d7cc]">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Score:</span>
-                        <span className="font-bold">{result.predictions.geological_suitability.score}/100</span>
+            {result && (
+              <div id="results-section" className="space-y-6">
+                {/* Individual Score Cards */}
+                <div className="grid grid-cols-1 gap-4">
+                  {/* Overall Suitability - Full Width */}
+                  {result.predictions?.overall_suitability && (
+                    <Card className="p-6 border-l-4 border-green-500">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div className="mb-4 md:mb-0">
+                          <h4 className="text-xl font-semibold text-[#5a3217]">Overall Suitability</h4>
+                          <div className="text-4xl font-bold text-green-600 mt-1">
+                            {result.predictions.overall_suitability.score}/100
+                          </div>
+                          <p className="text-lg text-gray-600 mt-2">
+                            {result.predictions.overall_suitability.level}
+                          </p>
+                        </div>
+                        <div className="w-full md:w-1/2">
+                          <div className="h-4 bg-gray-200 rounded-full overflow-hidden w-full">
+                            <div 
+                              className="h-full bg-gradient-to-r from-green-400 to-green-600"
+                              style={{ width: `${result.predictions.overall_suitability.score}%` }}
+                            />
+                          </div>
+                          <p className="text-sm text-gray-500 mt-2 text-right">
+                            {getSuitabilityDescription(result.predictions.overall_suitability.score)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                        <div 
-                          className="h-2.5 rounded-full" 
-                          style={{
-                            width: `${result.predictions.geological_suitability.score}%`,
-                            background: `linear-gradient(90deg, #a85c2c, #8B4513)`
-                          }}
-                        />
-                      </div>
-                      <p className="text-sm text-[#5a3217] mt-2">
-                        {result.predictions.geological_suitability.level}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                    </Card>
+                  )}
+                </div>
 
-                {result.predictions?.climate_impact && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Climate Impact</h3>
-                    <div className="bg-white p-4 rounded-lg border border-[#e0d7cc]">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Score:</span>
-                        <span className="font-bold">{result.predictions.climate_impact.score}/100</span>
+                {/* Other Score Cards in 2 columns */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Geological Suitability */}
+                  {result.predictions?.geological_suitability && (
+                    <Card className="p-4 border-l-4 border-[#8B4513]">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-[#5a3217]">Geological Suitability</h4>
+                          <div className="text-2xl font-bold text-[#8B4513] mt-1">
+                            {result.predictions.geological_suitability.score}/100
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {result.predictions.geological_suitability.level}
+                          </p>
+                        </div>
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-[#a85c2c] to-[#8B4513]"
+                            style={{ width: `${result.predictions.geological_suitability.score}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                        <div 
-                          className="h-2.5 rounded-full" 
-                          style={{
-                            width: `${result.predictions.climate_impact.score}%`,
-                            background: `linear-gradient(90deg, #1e88e5, #0d47a1)`
-                          }}
-                        />
-                      </div>
-                      <p className="text-sm text-[#5a3217] mt-2">
-                        {result.predictions.climate_impact.level}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                    </Card>
+                  )}
 
-                {result.predictions?.overall_suitability && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Overall Suitability</h3>
-                    <div className="bg-white p-4 rounded-lg border border-[#e0d7cc]">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Score:</span>
-                        <span className="font-bold">{result.predictions.overall_suitability.score}/100</span>
+                  {/* Climatic Impact */}
+                  {result.predictions?.climate_impact && (
+                    <Card className="p-4 border-l-4 border-blue-500">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-[#5a3217]">Climatic Impact</h4>
+                          <div className="text-2xl font-bold text-blue-600 mt-1">
+                            {result.predictions.climate_impact.score}/100
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {result.predictions.climate_impact.level}
+                          </p>
+                        </div>
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-blue-400 to-blue-600"
+                            style={{ width: `${result.predictions.climate_impact.score}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                        <div 
-                          className="h-2.5 rounded-full" 
-                          style={{
-                            width: `${result.predictions.overall_suitability.score}%`,
-                            background: `linear-gradient(90deg, #4caf50, #2e7d32)`
-                          }}
-                        />
-                      </div>
-                      <p className="text-sm text-[#5a3217] mt-2">
-                        {result.predictions.overall_suitability.level}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                    </Card>
+                  )}
+                </div>
 
-                {result.predictions?.climatic_effects && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Climate Impact</h3>
-                    <div className="bg-white p-4 rounded-lg border border-[#e0d7cc]">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Score:</span>
-                        <span className="font-bold">{result.predictions.climatic_effects.score}/100</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                        <div 
-                          className="h-2.5 rounded-full" 
-                          style={{
-                            width: `${result.predictions.climatic_effects.score}%`,
-                            background: `linear-gradient(90deg, #a85c2c, #8B4513)`
-                          }}
-                        />
-                      </div>
-                      <p className="text-sm text-[#5a3217] mt-2">
-                        {result.predictions.climatic_effects.level}
-                      </p>
-                      <p className="text-sm text-[#5a3217] mt-2">
-                        {result.predictions.climatic_effects.description}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
+                {/* Recommendations */}
                 {result.recommendations?.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-[#5a3217] mb-2">Recommendations</h3>
-                    <ul className="space-y-2 text-[#5a3217]">
+                  <Card className="p-4 border border-yellow-200 bg-yellow-50">
+                    <h4 className="font-semibold text-[#8B4513] mb-2">Recommendations</h4>
+                    <ul className="space-y-2">
                       {result.recommendations.map((rec, index) => (
                         <li key={index} className="flex items-start">
-                          <span className="text-[#a85c2c] mr-2">•</span>
-                          <span>{rec}</span>
+                          <span className="text-yellow-600 mr-2">•</span>
+                          <span className="text-sm text-gray-700">{rec}</span>
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </Card>
                 )}
-              </Card>
 
-              {/* Full API Response (scrollable box) */}
-              <div className="bg-white border border-[#e0d7cc] rounded-xl shadow p-4 max-h-48 overflow-auto text-xs text-[#5a3217]">
-                <div className="font-semibold mb-2">Full API Response</div>
-                <pre className="whitespace-pre-wrap break-all">{JSON.stringify(result, null, 2)}</pre>
+                {/* API Response */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-semibold text-[#5a3217]">API Response</h4>
+                    <button 
+                      onClick={() => {
+                        const textArea = document.createElement('textarea');
+                        textArea.value = JSON.stringify(result, null, 2);
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        // You might want to add a toast notification here
+                        alert('API response copied to clipboard!');
+                      }}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Copy to Clipboard
+                    </button>
+                  </div>
+                  <div className="bg-gray-800 text-green-400 p-4 rounded-lg text-xs font-mono overflow-auto max-h-60">
+                    <pre>{JSON.stringify(result, null, 2)}</pre>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         </div>
       </div>
       <Footer />
     </div>
-    
   );
+}
+
+// Add this helper function outside your component
+function getSuitabilityDescription(score) {
+  if (score >= 80) return 'Excellent location for dam construction';
+  if (score >= 60) return 'Good location with minor considerations';
+  if (score >= 40) return 'Moderate suitability, requires careful planning';
+  if (score >= 20) return 'Challenging location, significant considerations needed';
+  return 'Not recommended for dam construction';
 }
