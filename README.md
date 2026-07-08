@@ -1,127 +1,116 @@
 # 🌍 PlanetPulse
 
-PlanetPulse is a comprehensive environmental monitoring and analysis platform designed to track and analyze environmental data, particularly focusing on water resources and climate patterns. The platform provides valuable insights through data visualization and predictive analytics.
+**A machine learning system that scores dam site suitability in Gujarat, combining geological stability and climatic risk into a single predictive model, visualized on an interactive map.**
 
-## 🌟 Features
+Most "environmental dashboard" projects just plot static data. PlanetPulse trains two regression models on engineered geological and climatic features to *predict* a suitability score for a site, then serves those predictions through a map interface where every dam marker shows its actual model derived score.
 
-- **Real-time Data Monitoring**: Track environmental metrics in real-time
-- **Data Visualization**: Interactive charts and maps for data representation
-- **Predictive Analytics**: Forecast environmental trends and patterns
-- **User-friendly Dashboard**: Intuitive interface for data exploration
-- **API Integration**: Seamless connection with various data sources
-
-## 🚀 Tech Stack
-
-### Frontend
-- React.js
-- Material-UI
-- Chart.js
-- Mapbox/Leaflet
-
-### Backend
-- Django
-- Django REST Framework
-- PostgreSQL
-- Pandas for data analysis
-
-## 🛠️ Installation
-
-### Prerequisites
-- Python 3.8+
-- Node.js 14+
-- PostgreSQL 12+
-- pip (Python package manager)
-- npm (Node package manager)
-
-### Backend Setup
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/PlanetPulse.git
-   cd PlanetPulse/backend
-   ```
-
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Set up environment variables:
-   Create a `.env` file in the backend directory with the following variables:
-   ```
-   SECRET_KEY=your_secret_key_here
-   DEBUG=True
-   DATABASE_URL=postgresql://user:password@localhost:5432/planetpulse
-   ```
-
-5. Run migrations:
-   ```bash
-   python manage.py migrate
-   ```
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd ../frontend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the development server:
-   ```bash
-   npm start
-   ```
-
-## 🚦 Running the Application
-
-1. Start the backend server (from the backend directory):
-   ```bash
-   python manage.py runserver
-   ```
-
-2. Start the frontend development server (from the frontend directory):
-   ```bash
-   npm start
-   ```
-
-3. Open your browser and navigate to `http://localhost:3000`
-
-## 📊 Data Sources
-
-- Water resource data
-- Climate data
-- Environmental monitoring stations
-- Satellite imagery
-
-## 🤝 Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📧 Contact
-
-For any inquiries, please contact [Your Email] or open an issue in the repository.
+![Django](https://img.shields.io/badge/Django-5.2-092E20?logo=django&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![scikit--learn](https://img.shields.io/badge/scikit--learn-ML%20Models-F7931E?logo=scikitlearn&logoColor=white)
+![Leaflet](https://img.shields.io/badge/Leaflet-Map-199900?logo=leaflet&logoColor=white)
 
 ---
 
-Made with ❤️ by [Your Name/Organization]
-A geological suitability analyser also analysing climatic effects of human infrastructure
+## What It Does
+
+- **Predicts geological suitability and climatic impact scores** for a candidate dam site, given inputs like elevation, slope, soil type, seismic zone, 5-year rainfall trends, flood risk index, and heatwave frequency
+- **Combines both into an overall suitability score** (weighted 60% geological / 40% climatic), classified into Excellent → Poor bands
+- **Visualizes Gujarat's existing dam network** on an interactive Leaflet map, with each dam marker popup showing its real specifications and computed suitability scores
+- **Collects public feedback** (Contact, Feedback, and "Let Us Know" forms) with backend-triggered email acknowledgements
+
+## How the Models Work
+
+Rather than hand-labeling every training example, the training pipeline (`dam_scoring.py`) first computes a **domain-informed heuristic score** for each dam weighting factors like seismic zone, soil type, slope, elevation, and dam height for geological suitability, and rainfall patterns, flood risk, and temperature trends for climatic impact.
+
+These heuristic scores become the training targets for two gradient boosting regressors (`train_models.py`), which then generalize the scoring logic beyond the hand coded rules to any new site's feature values.
+
+| Model | Test R² | Test MSE |
+|---|---|---|
+| Geological Suitability | 0.85 | 8.63 |
+| Climatic Impact | 0.68 | 6.17 |
+
+Predictions are served through a single Django endpoint (`/api/predict/`) that maps incoming site features to the models' expected feature names, runs both models, and returns geological, climatic, and blended overall scores.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| ML models | scikit-learn (HistGradientBoosting / ExtraTrees / GradientBoosting regressors) |
+| Feature engineering | pandas, NumPy, SciPy (rainfall trend regression, flood/heat indices) |
+| Backend API | Django (function-based views, no DRF) |
+| Database | SQLite |
+| Frontend | React 19 + Vite |
+| Map | Leaflet, plotting live dam data from a Gujarat dams dataset |
+| Styling | Tailwind CSS |
+
+## Repo Structure
+
+```
+backend/
+  pulse/
+    views.py            # /predict/, /dams_csv/, and form-submission endpoints
+    models.py            # Contact, Feedback, LetUsKnow, Dam
+  dam_scoring.py          # Heuristic scoring formulas used as ML training labels
+  train_models.py         # Trains and evaluates the geological & climatic models
+  geological_model.pkl    # Trained model + feature list + scaler
+  climatic_model.pkl
+  model_metrics.json       # Train/test R² and MSE for both models
+  Dams_Gujarat.csv         # Source dam dataset for Gujarat
+frontend/
+  src/
+    components/GujaratMap.jsx   # Interactive Leaflet map of dam sites
+    components/MapSection.jsx
+    pages/Index.jsx              # Suitability prediction UI
+    pages/Contact.jsx, Services.jsx, LetUsKnow.jsx
+Planet Pulse.pdf            # Project report / write-up
+```
+
+## Setup
+
+### Backend
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+python manage.py migrate
+python manage.py runserver
+```
+
+Runs on `http://localhost:8000`. Trained model files (`geological_model.pkl`, `climatic_model.pkl`) are already included — to retrain from scratch, run `python train_models.py`.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Runs on the Vite dev server and calls the backend at `http://localhost:8000`.
+
+## API
+
+**`POST /api/predict/`** — returns geological, climatic, and overall suitability scores for a given site's features.
+
+**`GET /api/dams_csv/`** — returns Gujarat's dam dataset as JSON, including precomputed suitability scores, for map rendering.
+
+**`POST /api/contact/submit/`, `/api/feedback/submit/`, `/api/letusknow/submit/`** — store form submissions and trigger acknowledgement emails.
+
+## Known Limitations & Next Steps
+
+- Currently scoped to Gujarat's dam network and the features present in its training CSV — not yet generalized to arbitrary geographies
+- Training labels originate from a hand-tuned heuristic formula rather than ground-truth engineering assessments, so model quality is bounded by how well that heuristic reflects real-world suitability
+- Frontend API URL is hardcoded to `localhost:8000` rather than environment-configured, so a production frontend build currently can't point at a deployed backend without a code change
+- CORS is fully open (`CORS_ALLOW_ALL_ORIGINS = True`) and the database is SQLite — both fine for local development, but would need tightening (proper CORS allowlist, PostgreSQL) before any public deployment
+- Planned: expand training data beyond Gujarat, replace the hardcoded frontend API URL with an env var, and validate the heuristic scoring formula against real geotechnical assessments where available
+
+## License
+
+MIT
+
+## Author
+
+Built by **Pal Trivedi**. Full project write-up available in `Planet Pulse.pdf`.
